@@ -1,0 +1,20 @@
+{
+  "name": "google-workspace-a11y-checker",
+  "version": "1.0.0",
+  "description": "Google Workspace Accessibility Checker Add-on for Docs and Slides with Angular UI",
+  "private": true,
+  "scripts": {
+    "postinstall": "cd ui && npm install",
+    "build:backend": "node scripts/build-backend.js",
+    "build:ui": "cd ui && npm run build",
+    "bundle": "node scripts/build-bundle.js",
+    "build": "npm run build:backend && npm run build:ui && npm run bundle",
+    "push": "npm run build && clasp push"
+  },
+  "devDependencies": {
+    "@google/clasp": "^2.4.2",
+    "@types/google-apps-script": "^1.0.83",
+    "esbuild": "^0.28.1",
+    "typescript": "^5.4.5"
+  }
+}

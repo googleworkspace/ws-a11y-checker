@@ -1,0 +1,118 @@
+/* Authentic Google Workspace & Material Design 3 Sidebar Styling */
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap');
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 14px;
+  font-family: 'Roboto', 'Google Sans', Arial, sans-serif;
+  font-size: 13px;
+  color: #202124;
+  background-color: #ffffff;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Google Sans', 'Roboto', Arial, sans-serif;
+  margin: 0;
+}
+
+/* WCAG 2.1 AA Mandate: Visible, high-contrast focus rings */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid #1a73e8 !important;
+  outline-offset: 2px !important;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* Material Design 3 Workspace Buttons */
+button {
+  cursor: pointer;
+  font-family: 'Google Sans', 'Roboto', Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 18px; /* Material 3 Pill style */
+  border: 1px solid #dadce0;
+  background-color: #ffffff;
+  color: #1a73e8;
+  padding: 6px 16px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.1);
+}
+
+button:hover:not(:disabled) {
+  background-color: #f8fafd;
+  border-color: #d2e3fc;
+  box-shadow: 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+}
+
+button:active:not(:disabled) {
+  background-color: #e8f0fe;
+  box-shadow: none;
+}
+
+button.primary {
+  background-color: #1a73e8;
+  color: #ffffff;
+  border: 1px solid transparent;
+  box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3);
+}
+
+button.primary:hover:not(:disabled) {
+  background-color: #174ea6;
+  box-shadow: 0 1px 3px 1px rgba(60, 64, 67, 0.3);
+}
+
+button:disabled {
+  color: #9aa0a6;
+  background-color: #f1f3f4;
+  border-color: #e8eaed;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* Scrollbars matching Google Workspace */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #dadce0;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #bdc1c6;
+}
+
+@media (forced-colors: active) {
+  button {
+    border: 1px solid ButtonText;
+  }
+  button:focus-visible {
+    outline: 2px solid Highlight !important;
+  }
+}

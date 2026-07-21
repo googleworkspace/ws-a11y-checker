@@ -1,20 +1,53 @@
-# Node & NPM
+# Dependencies & Package Managers
 node_modules/
 ui/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
+.npmrc
 
-# Build Outputs
+# Build Outputs & Bundles
 dist/
 ui/dist/
 ui/.angular/
+*.tsbuildinfo
 
-# Environment & clasp credentials
+# Clasp & Google Apps Script Credentials / Config
 .clasp.json
-.env
-*.local
+.clasprc.json
+clasp-json.json
+appsscript.json.local
 
-# System Files
+# Secrets, Environment Files & Credentials
+.env
+.env.*
+*.env
+*.local
+secrets/
+secret/
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.asc
+id_rsa*
+id_ed25519*
+credentials.json
+client_secret*.json
+service_account*.json
+token.json
+tokens.json
+*.oauth2.json
+.netrc
+
+# IDEs, Tools & OS Metadata
 .DS_Store
 Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+.project
+.settings/

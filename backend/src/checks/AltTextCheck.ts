@@ -43,7 +43,8 @@ export function checkAltText(
       title: `Missing alternative text on ${elementType}`,
       description: 'Screen reader users cannot perceive images or visual elements without descriptive alternative text.',
       snippet: `${elementType} [ID: ${elementId}]`,
-      canAutoFix: false,
+      canAutoFix: true,
+      fixMetadata: { isImage: true, currentAlt: '' },
     };
   }
 
@@ -51,6 +52,7 @@ export function checkAltText(
   const lower = combined.toLowerCase();
   for (const prefix of REDUNDANT_PREFIXES) {
     if (lower.startsWith(prefix)) {
+      const suggestedClean = combined.substring(prefix.length).trim();
       return {
         elementId,
         elementType,
@@ -60,7 +62,8 @@ export function checkAltText(
         title: `Redundant alt text phrase ("${prefix}...")`,
         description: 'Screen readers already announce elements as graphics. Avoid redundant phrases like "image of".',
         snippet: combined.substring(0, 50),
-        canAutoFix: false,
+        canAutoFix: true,
+        fixMetadata: { isImage: true, currentAlt: combined, suggestedCleanAlt: suggestedClean },
       };
     }
   }

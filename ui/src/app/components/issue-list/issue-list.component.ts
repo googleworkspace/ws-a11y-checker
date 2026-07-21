@@ -19,6 +19,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Issue } from '../../services/accessibility.service';
 import { I18nService } from '../../services/i18n.service';
+import { LiteRtService } from '../../services/litert.service';
 
 @Component({
   selector: 'app-issue-list',
@@ -50,6 +51,7 @@ import { I18nService } from '../../services/i18n.service';
           <code>{{ issue.snippet }}</code>
         </div>
 
+        <!-- Color Contrast Swatch Preview -->
         <div *ngIf="issue.issueType === 'Color Contrast' && issue.fixMetadata" class="contrast-swatch-box">
           <div class="swatch-header">{{ i18n.t('interactiveContrast') }}</div>
           <div class="swatch-row">
@@ -64,11 +66,26 @@ import { I18nService } from '../../services/i18n.service';
           </div>
         </div>
 
+        <!-- LiteRT.js AI Alt Text Generator Box -->
+        <div *ngIf="issue.issueType === 'Alternative Text'" class="litert-box">
+          <div class="litert-header">
+            <span class="litert-badge">✨ LiteRT.js On-Device AI</span>
+            <button type="button" class="litert-gen-btn" (click)="generateAiAltText(issue)">
+              {{ altTextSuggestions[issue.elementId] ? 'Re-generate' : 'Generate Alt Text with LiteRT.js' }}
+            </button>
+          </div>
+
+          <div *ngIf="altTextSuggestions[issue.elementId] !== undefined" class="litert-suggestion">
+            <label class="litert-label">Suggested Alt Text Description:</label>
+            <input type="text" class="litert-input" [(ngModel)]="altTextSuggestions[issue.elementId]" placeholder="Describe the image context..." />
+          </div>
+        </div>
+
         <div class="card-actions">
           <button type="button" class="outlined-btn" (click)="select.emit(issue.elementId)" [attr.aria-label]="'Jump to element for ' + issue.title">
             {{ i18n.t('jumpBtn') }}
           </button>
-          <button *ngIf="issue.canAutoFix" type="button" class="primary" (click)="fix.emit({issue: issue, value: issue.fixMetadata?.suggestedHex || issue.fixMetadata?.suggestedHeadingLevel})" [attr.aria-label]="'Apply automatic fix for ' + issue.title">
+          <button *ngIf="issue.canAutoFix" type="button" class="primary" (click)="onApplyFix(issue)" [attr.aria-label]="'Apply automatic fix for ' + issue.title">
             {{ i18n.t('applyFixBtn') }}
           </button>
         </div>
@@ -108,6 +125,40 @@ import { I18nService } from '../../services/i18n.service';
     .swatch-label { display: block; font-size: 10px; color: #5f6368; }
     .swatch strong { font-size: 13px; font-weight: 700; }
 
+    .litert-box {
+      background: #f8fafd;
+      border: 1px solid #d2e3fc;
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .litert-header { display: flex; justify-content: space-between; align-items: center; }
+    .litert-badge { font-size: 11px; font-weight: 500; color: #1a73e8; }
+    button.litert-gen-btn {
+      height: 26px;
+      padding: 0 10px;
+      font-size: 11px;
+      border-radius: 13px;
+      background: #e8f0fe;
+      border: 1px solid #1a73e8;
+      color: #1a73e8;
+    }
+    button.litert-gen-btn:hover { background: #d2e3fc; }
+    .litert-suggestion { display: flex; flex-direction: column; gap: 4px; }
+    .litert-label { font-size: 10px; font-weight: 500; color: #5f6368; }
+    .litert-input {
+      padding: 6px 10px;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #202124;
+      background: #ffffff;
+      width: 100%;
+    }
+
     .card-actions { display: flex; gap: 8px; justify-content: flex-end; }
     button.outlined-btn { background: #ffffff; border: 1px solid #dadce0; color: #1a73e8; }
     button.outlined-btn:hover { background: #f8fafd; border-color: #1a73e8; }
@@ -118,5 +169,22 @@ export class IssueListComponent {
   @Output() select = new EventEmitter<string>();
   @Output() fix = new EventEmitter<{ issue: Issue; value?: string }>();
 
-  constructor(public i18n: I18nService) {}
+  altTextSuggestions: Record<string, string> = {};
+
+  constructor(public i18n: I18nService, private liteRt: LiteRtService) {}
+
+  async generateAiAltText(issue: Issue): Promise<void> {
+    const currentAlt = issue.fixMetadata?.currentAlt || '';
+    const caption = await this.liteRt.generateAltTextForElement(issue.elementId, currentAlt);
+    this.altTextSuggestions[issue.elementId] = caption;
+  }
+
+  onApplyFix(issue: Issue): void {
+    if (issue.issueType === 'Alternative Text') {
+      const suggested = this.altTextSuggestions[issue.elementId] || issue.fixMetadata?.suggestedCleanAlt || 'Visual element graphic';
+      this.fix.emit({ issue, value: suggested });
+    } else {
+      this.fix.emit({ issue, value: issue.fixMetadata?.suggestedHex || issue.fixMetadata?.suggestedHeadingLevel });
+    }
+  }
 }

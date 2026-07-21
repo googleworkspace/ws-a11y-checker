@@ -354,6 +354,15 @@ function rpcApplyFix(elementId: string, fixType: string, suggestedValue?: string
         }
       }
 
+      if (elementId.startsWith('doc_img_')) {
+        const idx = parseInt(elementId.replace('doc_img_', ''), 10);
+        const img = doc.getBody().getImages()[idx];
+        if (img && fixType === 'Alternative Text' && suggestedValue) {
+          img.setAltTextDescription(suggestedValue);
+          return true;
+        }
+      }
+
       if (elementId.startsWith('doc_p_')) {
         const idx = parseInt(elementId.replace('doc_p_', ''), 10);
         const p = doc.getBody().getParagraphs()[idx];
@@ -412,10 +421,18 @@ function rpcApplyFix(elementId: string, fixType: string, suggestedValue?: string
     const pres = SlidesApp.getActivePresentation();
     if (pres) {
       const el = pres.getPageElementById(elementId);
-      if (el && el.getPageElementType() === SlidesApp.PageElementType.SHAPE) {
-        if (fixType === 'Color Contrast' && suggestedValue) {
-          el.asShape().getText().getTextStyle().setForegroundColor(suggestedValue);
-          return true;
+      if (el) {
+        if (el.getPageElementType() === SlidesApp.PageElementType.SHAPE) {
+          if (fixType === 'Color Contrast' && suggestedValue) {
+            el.asShape().getText().getTextStyle().setForegroundColor(suggestedValue);
+            return true;
+          }
+        }
+        if (el.getPageElementType() === SlidesApp.PageElementType.IMAGE) {
+          if (fixType === 'Alternative Text' && suggestedValue) {
+            el.asImage().setDescription(suggestedValue);
+            return true;
+          }
         }
       }
     }
@@ -424,6 +441,34 @@ function rpcApplyFix(elementId: string, fixType: string, suggestedValue?: string
   }
 
   return false;
+}
+
+/**
+ * RPC: Retrieves image Base64 data for AI alt text generation.
+ */
+function rpcGetImageBlob(elementId: string): string {
+  try {
+    const doc = DocumentApp.getActiveDocument();
+    if (doc && elementId.startsWith('doc_img_')) {
+      const idx = parseInt(elementId.replace('doc_img_', ''), 10);
+      const img = doc.getBody().getImages()[idx];
+      if (img) {
+        return Utilities.base64Encode(img.getBlob().getBytes());
+      }
+    }
+  } catch (e) {}
+
+  try {
+    const pres = SlidesApp.getActivePresentation();
+    if (pres) {
+      const el = pres.getPageElementById(elementId);
+      if (el && el.getPageElementType() === SlidesApp.PageElementType.IMAGE) {
+        return Utilities.base64Encode(el.asImage().getBlob().getBytes());
+      }
+    }
+  } catch (e) {}
+
+  return '';
 }
 
 
@@ -477,6 +522,7 @@ export {
   rpcRunChecks,
   rpcSelectElement,
   rpcApplyFix,
+  rpcGetImageBlob,
   rpcGetSlideElements,
   rpcApplyReadingOrder,
   rpcGetSettings,

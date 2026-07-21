@@ -53,9 +53,21 @@ function populateTestCases(targetId?: string): string {
     if (pres) {
       return populateSlidesTestCases(pres);
     }
-  } catch (e) {
-    // Not in Google Slides
-  }
+  } catch (e) {}
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (ss) {
+      return populateSheetsTestCases(ss);
+    }
+  } catch (e) {}
+
+  try {
+    const form = FormApp.getActiveForm();
+    if (form) {
+      return populateFormsTestCases(form);
+    }
+  } catch (e) {}
 
   let doc: GoogleAppsScript.Document.Document | null = null;
   try {
@@ -226,6 +238,38 @@ function populateSlidesTestCases(pres: GoogleAppsScript.Slides.Presentation): st
   boxA.sendToBack();
 
   return 'Slides test suite successfully generated.';
+}
+
+/**
+ * Populates the active spreadsheet with WCAG 2.1 AA test cases for Google Sheets.
+ */
+function populateSheetsTestCases(ss: GoogleAppsScript.Spreadsheet.Spreadsheet): string {
+  const sheet = ss.getActiveSheet();
+  sheet.getRange('A1:C10').clear();
+
+  // Header row with low contrast (WCAG 1.4.3) and unfrozen header (WCAG 1.3.1)
+  const cellA1 = sheet.getRange('A1');
+  cellA1.setValue('Quarterly Metrics Header');
+  cellA1.setFontColor('#CCCCCC');
+  cellA1.setBackground('#FFFFFF');
+
+  for (let r = 2; r <= 8; r++) {
+    sheet.getRange(r, 1).setValue(`Data Item ${r - 1}`);
+    sheet.getRange(r, 2).setValue(r * 150);
+  }
+
+  return 'Google Sheets test suite successfully populated.';
+}
+
+/**
+ * Populates the active form with WCAG 2.1 AA test cases for Google Forms.
+ */
+function populateFormsTestCases(form: GoogleAppsScript.Forms.Form): string {
+  form.setDescription(''); // Missing main form description (WCAG 3.3.2)
+  const textItem = form.addTextItem();
+  textItem.setTitle(''); // Unlabelled question item (WCAG 3.3.2)
+
+  return 'Google Forms test suite successfully populated.';
 }
 
 /**

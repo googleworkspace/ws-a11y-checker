@@ -19,6 +19,7 @@
  */
 import { runAllChecks } from './checks/CheckRunner';
 import { applySlideReadingOrder, getSlideElementsAST, SlideElementAST } from './checks/ElementOrderCheck';
+import { buildGmailComposeCard } from './hosts/GmailHost';
 import { AccessibilityIssue } from './models/Issue';
 import { AddonSettings, DEFAULT_SETTINGS } from './models/Settings';
 
@@ -544,6 +545,7 @@ export {
   onOpen,
   showSidebar,
   populateTestCases,
+  buildGmailComposeCard,
   rpcGetHostType,
   rpcRunChecks,
   rpcSelectElement,

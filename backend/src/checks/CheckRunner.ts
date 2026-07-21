@@ -15,7 +15,8 @@
  */
 
 /**
- * Orchestrator engine running applicable accessibility checks across Google Docs or Slides host application.
+ * Orchestrator engine running applicable accessibility checks across Google Workspace host applications
+ * (Docs, Slides, Sheets, Forms).
  */
 import { AccessibilityIssue } from '../models/Issue';
 import { checkAltText } from './AltTextCheck';
@@ -25,35 +26,46 @@ import { checkHeadingStructureAndLists } from './HeadingCheck';
 import { checkHyperlink } from './HyperlinkCheck';
 import { checkTextAlignment, checkLineSpacing, checkEmptyParagraphSpacers } from './TypographyCheck';
 import { checkTableHeaders } from './TableCheck';
+import { runSpreadsheetChecks } from './SpreadsheetCheck';
+import { runFormChecks } from './FormCheck';
 
 /**
- * Runs accessibility checks against the active document or presentation.
+ * Runs accessibility checks against the active document, presentation, spreadsheet, or form.
  */
 export function runAllChecks(): AccessibilityIssue[] {
   const issues: AccessibilityIssue[] = [];
 
-  // Determine if active host is Google Docs or Google Slides
-  let isDoc = false;
+  // 1. Google Docs
   try {
     const doc = DocumentApp.getActiveDocument();
     if (doc) {
-      isDoc = true;
-      issues.push(...runDocsChecks(doc));
+      return runDocsChecks(doc);
     }
-  } catch (e) {
-    // Not in Google Docs
-  }
+  } catch (e) {}
 
-  if (!isDoc) {
-    try {
-      const pres = SlidesApp.getActivePresentation();
-      if (pres) {
-        issues.push(...runSlidesChecks(pres));
-      }
-    } catch (e) {
-      // Not in Google Slides
+  // 2. Google Slides
+  try {
+    const pres = SlidesApp.getActivePresentation();
+    if (pres) {
+      return runSlidesChecks(pres);
     }
-  }
+  } catch (e) {}
+
+  // 3. Google Sheets
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (ss) {
+      return runSpreadsheetChecks();
+    }
+  } catch (e) {}
+
+  // 4. Google Forms
+  try {
+    const form = FormApp.getActiveForm();
+    if (form) {
+      return runFormChecks();
+    }
+  } catch (e) {}
 
   return issues;
 }
@@ -235,4 +247,3 @@ function runSlidesChecks(pres: GoogleAppsScript.Slides.Presentation): Accessibil
 
   return issues;
 }
-

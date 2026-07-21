@@ -27,13 +27,11 @@ import { AddonSettings, DEFAULT_SETTINGS } from './models/Settings';
  */
 function onOpen(): void {
   let ui: GoogleAppsScript.Base.Ui | null = null;
-  try {
-    ui = DocumentApp.getUi();
-  } catch (e) {
-    try {
-      ui = SlidesApp.getUi();
-    } catch (err) {
-      // Host UI not available
+  try { ui = DocumentApp.getUi(); } catch (e) {
+    try { ui = SlidesApp.getUi(); } catch (e2) {
+      try { ui = SpreadsheetApp.getUi(); } catch (e3) {
+        try { ui = FormApp.getUi(); } catch (e4) {}
+      }
     }
   }
 
@@ -234,27 +232,35 @@ function populateSlidesTestCases(pres: GoogleAppsScript.Slides.Presentation): st
  */
 function showSidebar(): void {
   let ui: GoogleAppsScript.Base.Ui | null = null;
-  try {
-    ui = DocumentApp.getUi();
-  } catch (e) {
-    ui = SlidesApp.getUi();
+  try { ui = DocumentApp.getUi(); } catch (e) {
+    try { ui = SlidesApp.getUi(); } catch (e2) {
+      try { ui = SpreadsheetApp.getUi(); } catch (e3) {
+        try { ui = FormApp.getUi(); } catch (e4) {}
+      }
+    }
   }
 
   const html = HtmlService.createHtmlOutputFromFile('sidebar')
     .setTitle('Accessibility Checker')
     .setWidth(360);
-  ui.showSidebar(html);
+  if (ui) ui.showSidebar(html);
 }
 
 /**
- * RPC: Returns active host type ('DOCS' or 'SLIDES').
+ * RPC: Returns active host type ('DOCS', 'SLIDES', 'SHEETS', 'FORMS').
  */
-function rpcGetHostType(): 'DOCS' | 'SLIDES' | 'UNKNOWN' {
+function rpcGetHostType(): 'DOCS' | 'SLIDES' | 'SHEETS' | 'FORMS' | 'UNKNOWN' {
   try {
     if (DocumentApp.getActiveDocument()) return 'DOCS';
   } catch (e) {}
   try {
     if (SlidesApp.getActivePresentation()) return 'SLIDES';
+  } catch (e) {}
+  try {
+    if (SpreadsheetApp.getActiveSpreadsheet()) return 'SHEETS';
+  } catch (e) {}
+  try {
+    if (FormApp.getActiveForm()) return 'FORMS';
   } catch (e) {}
   return 'UNKNOWN';
 }
@@ -399,6 +405,26 @@ function rpcApplyFix(elementId: string, fixType: string, suggestedValue?: string
             }
             p.setHeading(headingEnum);
             return true;
+          }
+          if (fixType === 'Meaningful Hyperlinks' && suggestedValue) {
+            const textEl = p.editAsText();
+            const textStr = textEl.getText();
+            let linkUrl = '';
+            for (let c = 0; c < textStr.length; c++) {
+              const u = textEl.getLinkUrl(c);
+              if (u) { linkUrl = u; break; }
+            }
+            if (linkUrl) {
+              const lower = textStr.toLowerCase();
+              const kwMatch = ['click here', 'learn more', 'this document', 'this page', 'this', 'here', 'link'].find(k => lower.includes(k));
+              if (kwMatch) {
+                const kwIdx = lower.indexOf(kwMatch);
+                textEl.deleteText(kwIdx, kwIdx + kwMatch.length - 1);
+                textEl.insertText(kwIdx, suggestedValue);
+                textEl.setLinkUrl(kwIdx, kwIdx + suggestedValue.length - 1, linkUrl);
+                return true;
+              }
+            }
           }
           if (fixType === 'List Formatting') {
             const raw = p.getText();

@@ -62,7 +62,8 @@ export function checkHyperlink(
       title: `Non-descriptive link text ("${anchorText.trim()}")`,
       description: 'Link anchor text is too short or lacks descriptive context under WCAG 2.1 AA.',
       snippet: anchorText.trim(),
-      canAutoFix: false,
+      canAutoFix: true,
+      fixMetadata: { currentAnchor: anchorText.trim(), url },
     };
   }
 
@@ -78,7 +79,8 @@ export function checkHyperlink(
       title: `Unclear link anchor text ("${anchorText.trim()}")`,
       description: 'Under WCAG 2.1 AA criteria, link anchor text must clearly state its destination purpose even out of context. Avoid generic words like "this", "here", or "link".',
       snippet: anchorText.trim(),
-      canAutoFix: false,
+      canAutoFix: true,
+      fixMetadata: { currentAnchor: anchorText.trim(), url },
     };
   }
 
@@ -93,7 +95,8 @@ export function checkHyperlink(
       title: 'Raw URL literal used as link text',
       description: 'Screen readers announce URLs character by character. Replace raw URLs with descriptive human-readable titles.',
       snippet: anchorText.trim().substring(0, 40),
-      canAutoFix: false,
+      canAutoFix: true,
+      fixMetadata: { currentAnchor: anchorText.trim(), url },
     };
   }
 

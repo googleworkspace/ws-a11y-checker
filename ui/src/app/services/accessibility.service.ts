@@ -51,7 +51,7 @@ export class AccessibilityService {
   private hasScannedSubject = new BehaviorSubject<boolean>(false);
   readonly hasScanned$ = this.hasScannedSubject.asObservable();
 
-  private hostTypeSubject = new BehaviorSubject<'DOCS' | 'SLIDES' | 'UNKNOWN'>('UNKNOWN');
+  private hostTypeSubject = new BehaviorSubject<'DOCS' | 'SLIDES' | 'SHEETS' | 'FORMS' | 'UNKNOWN'>('UNKNOWN');
   readonly hostType$ = this.hostTypeSubject.asObservable();
 
   private settingsSubject = new BehaviorSubject<Settings>({

@@ -81,6 +81,21 @@ import { LiteRtService } from '../../services/litert.service';
           </div>
         </div>
 
+        <!-- LiteRT.js AI Link Title Generator Box -->
+        <div *ngIf="issue.issueType === 'Meaningful Hyperlinks'" class="litert-box">
+          <div class="litert-header">
+            <span class="litert-badge">✨ LiteRT.js NLP AI</span>
+            <button type="button" class="litert-gen-btn" (click)="generateAiLinkTitle(issue)">
+              {{ linkTitleSuggestions[issue.elementId] ? 'Re-generate' : 'Suggest Title with LiteRT.js' }}
+            </button>
+          </div>
+
+          <div *ngIf="linkTitleSuggestions[issue.elementId] !== undefined" class="litert-suggestion">
+            <label class="litert-label">Suggested Link Replacement Title:</label>
+            <input type="text" class="litert-input" [(ngModel)]="linkTitleSuggestions[issue.elementId]" placeholder="Descriptive replacement link title..." />
+          </div>
+        </div>
+
         <div class="card-actions">
           <button type="button" class="outlined-btn" (click)="select.emit(issue.elementId)" [attr.aria-label]="'Jump to element for ' + issue.title">
             {{ i18n.t('jumpBtn') }}
@@ -170,6 +185,7 @@ export class IssueListComponent {
   @Output() fix = new EventEmitter<{ issue: Issue; value?: string }>();
 
   altTextSuggestions: Record<string, string> = {};
+  linkTitleSuggestions: Record<string, string> = {};
 
   constructor(public i18n: I18nService, private liteRt: LiteRtService) {}
 
@@ -179,10 +195,20 @@ export class IssueListComponent {
     this.altTextSuggestions[issue.elementId] = caption;
   }
 
+  async generateAiLinkTitle(issue: Issue): Promise<void> {
+    const currentAnchor = issue.fixMetadata?.currentAnchor || issue.snippet || '';
+    const url = issue.fixMetadata?.url || '';
+    const title = await this.liteRt.suggestLinkAnchor(currentAnchor, issue.description, url);
+    this.linkTitleSuggestions[issue.elementId] = title;
+  }
+
   onApplyFix(issue: Issue): void {
     if (issue.issueType === 'Alternative Text') {
       const suggested = this.altTextSuggestions[issue.elementId] || issue.fixMetadata?.suggestedCleanAlt || 'Visual element graphic';
       this.fix.emit({ issue, value: suggested });
+    } else if (issue.issueType === 'Meaningful Hyperlinks') {
+      const suggestedLink = this.linkTitleSuggestions[issue.elementId] || 'WCAG 2.1 AA Reference Documentation';
+      this.fix.emit({ issue, value: suggestedLink });
     } else {
       this.fix.emit({ issue, value: issue.fixMetadata?.suggestedHex || issue.fixMetadata?.suggestedHeadingLevel });
     }

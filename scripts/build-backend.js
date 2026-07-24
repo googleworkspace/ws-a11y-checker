@@ -52,6 +52,7 @@ function buildGmailComposeCard(e) { return _app.buildGmailComposeCard(e); }
 function buildGmailHomepageCard(e) { return _app.buildGmailHomepageCard(e); }
 function refreshGmailHomepageCard(e) { return _app.refreshGmailHomepageCard(e); }
 function buildGmailMessageCard(e) { return _app.buildGmailMessageCard(e); }
+function rpcApplyGmailFix(e) { return _app.rpcApplyGmailFix(e); }
 function rpcGetHostType() { return _app.rpcGetHostType(); }
 function rpcRunChecks() { return _app.rpcRunChecks(); }
 function rpcSelectElement(id) { return _app.rpcSelectElement(id); }

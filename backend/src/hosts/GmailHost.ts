@@ -20,14 +20,9 @@ import { checkHyperlink } from '../checks/HyperlinkCheck';
 /**
  * Parses Gmail compose draft HTML body and runs pre-send WCAG 2.1 AA checks.
  */
-export function auditGmailDraftHtml(htmlContent: string, debugLog?: string[]): AccessibilityIssue[] {
+export function auditGmailDraftHtml(htmlContent: string): AccessibilityIssue[] {
   const issues: AccessibilityIssue[] = [];
-  if (!htmlContent) {
-    debugLog?.push('⚠️ auditGmailDraftHtml called with empty HTML content.');
-    return issues;
-  }
-
-  debugLog?.push(`Starting WCAG 2.1 AA audit on draft HTML (${htmlContent.length} bytes)...`);
+  if (!htmlContent) return issues;
 
   // 1. Scan <a> links in draft HTML for WCAG 2.4.4 Link Purpose
   const linkRegex = /<a\s+[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi;
@@ -42,6 +37,11 @@ export function auditGmailDraftHtml(htmlContent: string, debugLog?: string[]): A
     if (rawAnchor) {
       const issue = checkHyperlink(`gmail_link_${linkIdx}`, 'Email Link', rawAnchor, url);
       if (issue) {
+        issue.canAutoFix = true;
+        const domain = url.replace(/^https?:\/\//i, '').split('/')[0] || 'destination link';
+        (issue as any).url = url;
+        (issue as any).rawAnchor = rawAnchor;
+        (issue as any).suggestedText = `${rawAnchor} (${domain})`;
         issues.push(issue);
       }
     }
@@ -58,7 +58,7 @@ export function auditGmailDraftHtml(htmlContent: string, debugLog?: string[]): A
     const altText = altMatch ? altMatch[1].trim() : null;
 
     if (altText === null || altText === '') {
-      issues.push({
+      const imgIssue: any = {
         elementId: `gmail_img_${imgIdx}`,
         elementType: 'Inline Email Image',
         issueType: 'Alternative Text',
@@ -67,150 +67,146 @@ export function auditGmailDraftHtml(htmlContent: string, debugLog?: string[]): A
         title: `Missing alternative text on inline email image #${imgIdx}`,
         description: 'Recipients using screen readers cannot perceive inline graphics in emails without descriptive alternative text.',
         snippet: `Inline Image #${imgIdx}`,
-        canAutoFix: false,
-      });
+        canAutoFix: true,
+        imgIdx: imgIdx,
+        suggestedAlt: 'Inline email attachment graphic',
+      };
+      issues.push(imgIssue);
     }
   }
-
-  debugLog?.push(`Audit complete: Scanned ${linkIdx} hyperlink(s) and ${imgIdx} image(s). Found ${issues.length} issue(s).`);
-  console.log(`[auditGmailDraftHtml] Scanned links: ${linkIdx}, images: ${imgIdx}, issues found: ${issues.length}`);
 
   return issues;
 }
 
 /**
- * Helper to retrieve draft HTML body and subject from event object or latest active draft in Gmail with detailed logging.
+ * Helper to retrieve draft HTML body and subject from event object or latest active draft in Gmail.
  */
-function resolveDraftContent(e: any): { htmlBody: string; subject: string; debugLog: string[] } {
+function resolveDraftContent(e: any): { htmlBody: string; subject: string; draftId: string } {
   let htmlBody = '';
   let subject = '';
-  const debugLog: string[] = [];
 
-  const timeStr = new Date().toISOString();
-  debugLog.push(`[${timeStr}] Starting draft resolution...`);
-  console.log('[resolveDraftContent] Event object:', JSON.stringify(e || {}));
-  debugLog.push(`Event keys present: ${e ? Object.keys(e).join(', ') : 'null'}`);
-
-  if (e && e.gmail) {
-    debugLog.push(`e.gmail keys: ${Object.keys(e.gmail).join(', ')}`);
-    if (e.gmail.draftMetadata) {
-      debugLog.push(`e.gmail.draftMetadata: ${JSON.stringify(e.gmail.draftMetadata)}`);
-    }
-  }
-
-  const draftId = e?.gmail?.draftMetadata?.id || e?.gmail?.draftId || e?.draftMetadata?.id || e?.draftMetadata?.draftId || e?.draftId || e?.gmail?.id || e?.id;
-  debugLog.push(`Resolved target draftId from event: ${draftId || '(none)'}`);
+  const draftId = e?.gmail?.draftMetadata?.id || e?.gmail?.draftId || e?.draftMetadata?.id || e?.draftMetadata?.draftId || e?.draftId || e?.gmail?.id || e?.id || '';
 
   if (draftId && typeof GmailApp !== 'undefined') {
     try {
-      debugLog.push(`Calling GmailApp.getDraft("${draftId}")...`);
       const draft = GmailApp.getDraft(draftId);
       if (draft) {
-        debugLog.push('Draft found via ID. Fetching message subject & body...');
         const msg = draft.getMessage();
         htmlBody = msg.getBody();
         subject = msg.getSubject() || '(Untitled Draft)';
-        debugLog.push(`✓ Successfully loaded draft via ID: "${subject}" (${htmlBody.length} bytes HTML)`);
-        console.log(`[resolveDraftContent] Loaded draft via ID: ${draftId}, length: ${htmlBody.length}`);
-      } else {
-        debugLog.push(`⚠️ GmailApp.getDraft("${draftId}") returned null/undefined.`);
-        console.warn(`[resolveDraftContent] getDraft returned null for id: ${draftId}`);
       }
-    } catch (err: any) {
-      const errMsg = `Error calling GmailApp.getDraft("${draftId}"): ${err.message || err}`;
-      console.error(errMsg, err);
-      debugLog.push(`❌ ${errMsg}`);
-    }
+    } catch (err) {}
   }
 
   if (!htmlBody && typeof GmailApp !== 'undefined') {
     try {
-      debugLog.push('No draft content loaded via event ID. Calling GmailApp.getDrafts() to inspect active user drafts...');
       const drafts = GmailApp.getDrafts();
-      debugLog.push(`GmailApp.getDrafts() returned ${drafts ? drafts.length : 0} draft(s).`);
-      console.log(`[resolveDraftContent] getDrafts() count: ${drafts ? drafts.length : 0}`);
-
       if (drafts && drafts.length > 0) {
         const latestDraft = drafts[0];
-        const latestId = latestDraft.getId();
-        debugLog.push(`Inspecting latest draft in inbox (ID: ${latestId})...`);
         const msg = latestDraft.getMessage();
         htmlBody = msg.getBody();
         subject = msg.getSubject() || '(Untitled Draft)';
-        debugLog.push(`✓ Successfully loaded latest draft: "${subject}" (${htmlBody.length} bytes HTML)`);
-        console.log(`[resolveDraftContent] Loaded latest draft ID: ${latestId}, length: ${htmlBody.length}`);
-      } else {
-        debugLog.push('⚠️ No drafts found in GmailApp.getDrafts(). Note: When composing in Gmail web, you must type a recipient or subject and wait ~2 seconds for Gmail to auto-save the draft to the server before checking.');
-        console.warn('[resolveDraftContent] No drafts returned by GmailApp.getDrafts()');
+        return { htmlBody, subject, draftId: latestDraft.getId() };
       }
-    } catch (err: any) {
-      const errMsg = `Error calling GmailApp.getDrafts(): ${err.message || err}`;
-      console.error(errMsg, err);
-      debugLog.push(`❌ ${errMsg}`);
+    } catch (err) {}
+  }
+
+  return { htmlBody, subject, draftId };
+}
+
+/**
+ * Helper to render issues with 1-click Quick Fix auto-remediation buttons on Gmail cards.
+ */
+function renderIssuesWithQuickFix(section: GoogleAppsScript.Card_Service.CardSection, issues: AccessibilityIssue[], draftId: string) {
+  issues.forEach((issue: any) => {
+    const keyText = `<b>${issue.severity}</b>: ${issue.title}<br><i>${issue.description}</i>`;
+    section.addWidget(CardService.newTextParagraph().setText(keyText));
+
+    if (issue.canAutoFix) {
+      const fixAction = CardService.newAction()
+        .setFunctionName('rpcApplyGmailFix')
+        .setParameters({
+          issueId: issue.elementId || '',
+          fixType: issue.issueType === 'Alternative Text' ? 'ALT_TEXT' : 'LINK',
+          draftId: draftId || '',
+          url: issue.url || '',
+          oldText: issue.rawAnchor || '',
+          newText: issue.suggestedText || '',
+          imgIdx: String(issue.imgIdx || 1),
+          suggestedAlt: issue.suggestedAlt || 'Inline email graphic',
+        });
+
+      const buttonText = issue.issueType === 'Alternative Text'
+        ? `✨ Quick Fix: Add Alt Text ("${issue.suggestedAlt}")`
+        : `✨ Quick Fix: Rename Link ("${issue.suggestedText}")`;
+
+      section.addWidget(
+        CardService.newTextButton()
+          .setText(buttonText)
+          .setOnClickAction(fixAction)
+      );
     }
-  }
-
-  if (typeof GmailApp === 'undefined') {
-    const errMsg = '❌ GmailApp global service is undefined in this Apps Script execution context!';
-    console.error(errMsg);
-    debugLog.push(errMsg);
-  }
-
-  return { htmlBody, subject, debugLog };
+  });
 }
 
 /**
- * Helper to check for OAuth scope permission errors and render an actionable re-authorization card.
+ * Applies 1-click quick fixes (link renaming or alt text insertion) directly into the Gmail compose draft HTML body.
  */
-function checkAndRenderPermissionError(section: GoogleAppsScript.Card_Service.CardSection, debugLog: string[]): boolean {
-  const hasPermissionError = debugLog.some((l) =>
-    l.toLowerCase().includes('does not have permission') ||
-    l.toLowerCase().includes('required permissions') ||
-    l.toLowerCase().includes('authorization')
-  );
+export function rpcApplyGmailFix(e: any): GoogleAppsScript.Card_Service.UpdateDraftActionResponse {
+  const fixType = e.parameters['fixType'];
+  const draftId = e.parameters['draftId'];
 
-  if (hasPermissionError) {
-    section.addWidget(
-      CardService.newTextParagraph().setText(
-        '<b>🔐 Authorization Required for Email Drafts</b><br><br>' +
-        'To audit your active draft email from the sidebar, Google Apps Script requires permission to inspect Gmail drafts (<code>gmail.readonly</code> / <code>gmail.compose</code>). Because these permissions were recently added to the add-on manifest, your current Gmail session is running under earlier permissions.<br><br>' +
-        '<b>How to grant permissions (takes 10 seconds):</b><br>' +
-        '1. Open any Google Doc, Slide, Sheet, or Form.<br>' +
-        '2. Go to top menu: <b>Extensions → Accessibility Checker → Show Sidebar</b>.<br>' +
-        '3. Google Apps Script will pop up an <b>Authorization Required</b> dialog. Click <b>Review Permissions → Allow</b>.<br>' +
-        '4. Return here to Gmail and click <b>Re-check Current Draft</b> below!'
-      )
-    );
-    const checkAction = CardService.newAction().setFunctionName('refreshGmailHomepageCard');
-    section.addWidget(
-      CardService.newTextButton()
-        .setText('🔄 Re-check Current Draft')
-        .setOnClickAction(checkAction)
-    );
-    return true;
+  let htmlBody = '';
+  if (draftId && typeof GmailApp !== 'undefined') {
+    try {
+      const draft = GmailApp.getDraft(draftId);
+      if (draft) htmlBody = draft.getMessage().getBody();
+    } catch (err) {}
   }
-  return false;
-}
-
-/**
- * Helper to append diagnostic logs section to a CardBuilder.
- */
-function addDiagnosticLogSection(builder: GoogleAppsScript.Card_Service.CardBuilder, debugLog: string[]) {
-  if (!debugLog || debugLog.length === 0) return;
-  const hasError = debugLog.some((l) => l.includes('❌') || l.includes('⚠️') || l.includes('Error'));
-  const logSection = CardService.newCardSection()
-    .setHeader('🛠️ Diagnostic Logs (Console / Execution)')
-    .setCollapsible(true);
-
-  if (hasError) {
-    logSection.setNumUncollapsibleWidgets(debugLog.length);
-  } else {
-    logSection.setNumUncollapsibleWidgets(1);
+  if (!htmlBody && typeof GmailApp !== 'undefined') {
+    try {
+      const drafts = GmailApp.getDrafts();
+      if (drafts && drafts.length > 0) htmlBody = drafts[0].getMessage().getBody();
+    } catch (err) {}
   }
 
-  const logText = debugLog.map((line) => `• ${line}`).join('<br>');
-  logSection.addWidget(CardService.newTextParagraph().setText(`<font color="#5f6368">${logText}</font>`));
-  builder.addSection(logSection);
+  let updatedHtml = htmlBody;
+
+  if (fixType === 'LINK') {
+    const oldUrl = e.parameters['url'];
+    const oldText = e.parameters['oldText'];
+    const newText = e.parameters['newText'] || `${oldText} (descriptive link)`;
+    if (oldUrl && oldText) {
+      const escapedUrl = oldUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(<a\\s+[^>]*href=["']${escapedUrl}["'][^>]*>)${oldText}(<\\/a>)`, 'gi');
+      updatedHtml = updatedHtml.replace(regex, `$1${newText}$2`);
+    }
+  } else if (fixType === 'ALT_TEXT') {
+    const targetIdx = parseInt(e.parameters['imgIdx'], 10) || 1;
+    const suggestedAlt = e.parameters['suggestedAlt'] || 'Inline email graphic';
+    let currIdx = 0;
+    updatedHtml = updatedHtml.replace(/<img\s+([^>]*)\/?>/gi, (match, attrs) => {
+      currIdx++;
+      if (currIdx === targetIdx) {
+        if (/alt=["'][^"']*["']/i.test(attrs)) {
+          return match.replace(/alt=["'][^"']*["']/i, `alt="${suggestedAlt}"`);
+        } else {
+          return `<img alt="${suggestedAlt}" ${attrs}>`;
+        }
+      }
+      return match;
+    });
+  }
+
+  const response = CardService.newUpdateDraftActionResponseBuilder()
+    .setUpdateDraftBodyAction(
+      CardService.newUpdateDraftBodyAction()
+        .addUpdateContent(updatedHtml, CardService.ContentType.TEXT)
+        .setUpdateType(CardService.UpdateDraftBodyType.REPLACE)
+    )
+    .build();
+
+  return response;
 }
 
 /**
@@ -223,13 +219,13 @@ export function buildGmailComposeCard(e: any): GoogleAppsScript.Card_Service.Car
   const section = CardService.newCardSection();
 
   try {
-    const { htmlBody, subject, debugLog } = resolveDraftContent(e);
+    const { htmlBody, subject, draftId } = resolveDraftContent(e);
 
     if (htmlBody) {
       if (subject) {
         section.addWidget(CardService.newTextParagraph().setText(`<b>Draft:</b> ${subject}`));
       }
-      const issues = auditGmailDraftHtml(htmlBody, debugLog);
+      const issues = auditGmailDraftHtml(htmlBody);
 
       if (issues.length === 0) {
         const textWidget = CardService.newTextParagraph().setText('<b>✓ All Clear!</b><br>No WCAG 2.1 Level AA link or image accessibility issues detected in your draft email.');
@@ -237,29 +233,22 @@ export function buildGmailComposeCard(e: any): GoogleAppsScript.Card_Service.Car
       } else {
         const headerWidget = CardService.newTextParagraph().setText(`<b>Found ${issues.length} Accessibility Issue(s)</b>`);
         section.addWidget(headerWidget);
-
-        issues.forEach((issue) => {
-          const keyText = `<b>${issue.severity}</b>: ${issue.title}<br><i>${issue.description}</i>`;
-          section.addWidget(CardService.newTextParagraph().setText(keyText));
-        });
+        renderIssuesWithQuickFix(section, issues, draftId);
       }
     } else {
-      if (!checkAndRenderPermissionError(section, debugLog)) {
-        section.addWidget(
-          CardService.newTextParagraph().setText(
-            '<b>⚠️ No Active Draft Content Detected</b><br><br>' +
-            'When invoked, the add-on checks for your active email draft. No saved draft body was found right now.<br><br>' +
-            '<b>How to audit your email:</b><br>' +
-            '1. Type a recipient, subject, or message body in the compose window.<br>' +
-            '2. Wait ~2 seconds for Gmail to auto-save the draft to the server.<br>' +
-            '3. Re-open or click check below.'
-          )
-        );
-      }
+      section.addWidget(
+        CardService.newTextParagraph().setText(
+          '<b>⚠️ No Active Draft Content Detected</b><br><br>' +
+          'When invoked, the add-on checks for your active email draft. No saved draft body was found right now.<br><br>' +
+          '<b>How to audit your email:</b><br>' +
+          '1. Type a recipient, subject, or message body in the compose window.<br>' +
+          '2. Wait ~2 seconds for Gmail to auto-save the draft to the server.<br>' +
+          '3. Re-open or click check below.'
+        )
+      );
     }
 
     builder.addSection(section);
-    addDiagnosticLogSection(builder, debugLog);
   } catch (err: any) {
     section.addWidget(CardService.newTextParagraph().setText(`Audit Error: ${err.message || err}`));
     builder.addSection(section);
@@ -278,7 +267,7 @@ export function buildGmailHomepageCard(e: any): GoogleAppsScript.Card_Service.Ca
   const section = CardService.newCardSection();
 
   try {
-    const { htmlBody, subject, debugLog } = resolveDraftContent(e);
+    const { htmlBody, subject, draftId } = resolveDraftContent(e);
 
     if (htmlBody) {
       section.addWidget(
@@ -292,7 +281,7 @@ export function buildGmailHomepageCard(e: any): GoogleAppsScript.Card_Service.Ca
           .setOnClickAction(refreshAction)
       );
 
-      const issues = auditGmailDraftHtml(htmlBody, debugLog);
+      const issues = auditGmailDraftHtml(htmlBody);
 
       if (issues.length === 0) {
         section.addWidget(
@@ -302,34 +291,28 @@ export function buildGmailHomepageCard(e: any): GoogleAppsScript.Card_Service.Ca
         section.addWidget(
           CardService.newTextParagraph().setText(`<b>Found ${issues.length} Accessibility Issue(s)</b>`)
         );
-        issues.forEach((issue) => {
-          const keyText = `<b>${issue.severity}</b>: ${issue.title}<br><i>${issue.description}</i>`;
-          section.addWidget(CardService.newTextParagraph().setText(keyText));
-        });
+        renderIssuesWithQuickFix(section, issues, draftId);
       }
     } else {
-      if (!checkAndRenderPermissionError(section, debugLog)) {
-        section.addWidget(
-          CardService.newTextParagraph().setText(
-            '<b>⚠️ No Active Draft Content Found</b><br><br>' +
-            'When you click check, we search for your active email draft in Gmail. No saved draft body was found right now.<br><br>' +
-            '<b>How to check your email:</b><br>' +
-            '1. Start composing a new email or reply in Gmail.<br>' +
-            '2. Type a recipient, subject, or message body (wait ~2 seconds for Gmail to auto-save the draft to the server).<br>' +
-            '3. Click <b>Re-check Current Draft</b> below.'
-          )
-        );
-        const checkAction = CardService.newAction().setFunctionName('refreshGmailHomepageCard');
-        section.addWidget(
-          CardService.newTextButton()
-            .setText('🔄 Re-check Current Draft')
-            .setOnClickAction(checkAction)
-        );
-      }
+      section.addWidget(
+        CardService.newTextParagraph().setText(
+          '<b>⚠️ No Active Draft Content Found</b><br><br>' +
+          'When you click check, we search for your active email draft in Gmail. No saved draft body was found right now.<br><br>' +
+          '<b>How to check your email:</b><br>' +
+          '1. Start composing a new email or reply in Gmail.<br>' +
+          '2. Type a recipient, subject, or message body (wait ~2 seconds for Gmail to auto-save the draft to the server).<br>' +
+          '3. Click <b>Re-check Current Draft</b> below.'
+        )
+      );
+      const checkAction = CardService.newAction().setFunctionName('refreshGmailHomepageCard');
+      section.addWidget(
+        CardService.newTextButton()
+          .setText('🔄 Re-check Current Draft')
+          .setOnClickAction(checkAction)
+      );
     }
 
     builder.addSection(section);
-    addDiagnosticLogSection(builder, debugLog);
   } catch (err: any) {
     section.addWidget(CardService.newTextParagraph().setText(`Audit Error: ${err.message || err}`));
     builder.addSection(section);
@@ -342,7 +325,6 @@ export function buildGmailHomepageCard(e: any): GoogleAppsScript.Card_Service.Ca
  * Action handler for refreshing the homepage card without duplicating card stack.
  */
 export function refreshGmailHomepageCard(e: any): GoogleAppsScript.Card_Service.ActionResponse {
-  console.log('[refreshGmailHomepageCard] Action triggered with event:', JSON.stringify(e || {}));
   const cards = buildGmailHomepageCard(e);
   return CardService.newActionResponseBuilder()
     .setNavigation(CardService.newNavigation().updateCard(cards[0]))
@@ -362,9 +344,6 @@ export function buildGmailMessageCard(e: any): GoogleAppsScript.Card_Service.Car
     const messageId = e?.gmail?.messageId || e?.messageMetadata?.messageId || e?.gmail?.messageMetadata?.messageId;
     let htmlBody = '';
     let msgSubject = '';
-    const debugLog: string[] = [];
-
-    debugLog.push(`[${new Date().toISOString()}] Auditing message ID: ${messageId || '(none)'}`);
 
     if (messageId && typeof GmailApp !== 'undefined') {
       try {
@@ -372,15 +351,8 @@ export function buildGmailMessageCard(e: any): GoogleAppsScript.Card_Service.Car
         if (msg) {
           htmlBody = msg.getBody();
           msgSubject = msg.getSubject() || '(Untitled Message)';
-          debugLog.push(`✓ Loaded message "${msgSubject}" (${htmlBody.length} bytes HTML)`);
-        } else {
-          debugLog.push(`⚠️ GmailApp.getMessageById("${messageId}") returned null.`);
         }
-      } catch (err: any) {
-        const errMsg = `Error fetching message: ${err.message || err}`;
-        console.error(errMsg, err);
-        debugLog.push(`❌ ${errMsg}`);
-      }
+      } catch (err) {}
     }
 
     if (htmlBody) {
@@ -388,7 +360,7 @@ export function buildGmailMessageCard(e: any): GoogleAppsScript.Card_Service.Car
         CardService.newTextParagraph().setText(`<b>Auditing Message:</b> ${msgSubject}`)
       );
 
-      const issues = auditGmailDraftHtml(htmlBody, debugLog);
+      const issues = auditGmailDraftHtml(htmlBody);
 
       if (issues.length === 0) {
         section.addWidget(
@@ -398,7 +370,7 @@ export function buildGmailMessageCard(e: any): GoogleAppsScript.Card_Service.Car
         section.addWidget(
           CardService.newTextParagraph().setText(`<b>Found ${issues.length} Accessibility Issue(s)</b>`)
         );
-        issues.forEach((issue) => {
+        issues.forEach((issue: any) => {
           const keyText = `<b>${issue.severity}</b>: ${issue.title}<br><i>${issue.description}</i>`;
           section.addWidget(CardService.newTextParagraph().setText(keyText));
         });
@@ -408,7 +380,6 @@ export function buildGmailMessageCard(e: any): GoogleAppsScript.Card_Service.Car
     }
 
     builder.addSection(section);
-    addDiagnosticLogSection(builder, debugLog);
   } catch (err: any) {
     section.addWidget(CardService.newTextParagraph().setText(`Audit Error: ${err.message || err}`));
     builder.addSection(section);

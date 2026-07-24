@@ -19,7 +19,7 @@
  */
 import { runAllChecks } from './checks/CheckRunner';
 import { applySlideReadingOrder, getSlideElementsAST, SlideElementAST } from './checks/ElementOrderCheck';
-import { buildGmailComposeCard, buildGmailHomepageCard, refreshGmailHomepageCard, buildGmailMessageCard } from './hosts/GmailHost';
+import { buildGmailComposeCard, buildGmailHomepageCard, refreshGmailHomepageCard, buildGmailMessageCard, rpcApplyGmailFix } from './hosts/GmailHost';
 import { AccessibilityIssue } from './models/Issue';
 import { AddonSettings, DEFAULT_SETTINGS } from './models/Settings';
 
@@ -593,6 +593,7 @@ export {
   buildGmailHomepageCard,
   refreshGmailHomepageCard,
   buildGmailMessageCard,
+  rpcApplyGmailFix,
   rpcGetHostType,
   rpcRunChecks,
   rpcSelectElement,

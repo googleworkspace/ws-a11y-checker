@@ -77,7 +77,7 @@ function resolveDraftContent(e: any): { htmlBody: string; subject: string } {
   let htmlBody = '';
   let subject = '';
 
-  const draftId = e?.gmail?.draftId || e?.draftMetadata?.draftId || e?.gmail?.draftMetadata?.draftId || e?.draftId;
+  const draftId = e?.gmail?.draftMetadata?.id || e?.gmail?.draftId || e?.draftMetadata?.id || e?.draftMetadata?.draftId || e?.draftId || e?.gmail?.id || e?.id;
 
   if (draftId && typeof GmailApp !== 'undefined') {
     try {
@@ -106,7 +106,7 @@ function resolveDraftContent(e: any): { htmlBody: string; subject: string } {
 /**
  * Builds native Google Workspace CardService UI for Gmail compose window toolbar.
  */
-export function buildGmailComposeCard(e: any): GoogleAppsScript.Card_Service.Card {
+export function buildGmailComposeCard(e: any): GoogleAppsScript.Card_Service.Card[] {
   const builder = CardService.newCardBuilder();
   builder.setHeader(CardService.newCardHeader().setTitle('Email Accessibility Checker'));
 
@@ -122,7 +122,7 @@ export function buildGmailComposeCard(e: any): GoogleAppsScript.Card_Service.Car
       const issues = auditGmailDraftHtml(htmlBody);
 
       if (issues.length === 0) {
-        const textWidget = CardService.newTextParagraph().setText('<b>✓ All Clear!</b><br>No accessibility issues detected in your draft email.');
+        const textWidget = CardService.newTextParagraph().setText('<b>✓ All Clear!</b><br>No WCAG 2.1 Level AA link or image accessibility issues detected in your draft email.');
         section.addWidget(textWidget);
       } else {
         const headerWidget = CardService.newTextParagraph().setText(`<b>Found ${issues.length} Accessibility Issue(s)</b>`);
@@ -141,13 +141,13 @@ export function buildGmailComposeCard(e: any): GoogleAppsScript.Card_Service.Car
   }
 
   builder.addSection(section);
-  return builder.build();
+  return [builder.build()];
 }
 
 /**
  * Builds native Google Workspace CardService UI for Gmail homepage / right-hand sidebar.
  */
-export function buildGmailHomepageCard(e: any): GoogleAppsScript.Card_Service.Card {
+export function buildGmailHomepageCard(e: any): GoogleAppsScript.Card_Service.Card[] {
   const builder = CardService.newCardBuilder();
   builder.setHeader(CardService.newCardHeader().setTitle('Email Accessibility Checker'));
 
@@ -172,7 +172,7 @@ export function buildGmailHomepageCard(e: any): GoogleAppsScript.Card_Service.Ca
 
       if (issues.length === 0) {
         section.addWidget(
-          CardService.newTextParagraph().setText('<b>✓ All Clear!</b><br>No WCAG 2.1 Level AA accessibility issues detected in your draft email.')
+          CardService.newTextParagraph().setText('<b>✓ All Clear!</b><br>No WCAG 2.1 Level AA link or image accessibility issues detected in your draft email.')
         );
       } else {
         section.addWidget(
@@ -201,23 +201,23 @@ export function buildGmailHomepageCard(e: any): GoogleAppsScript.Card_Service.Ca
   }
 
   builder.addSection(section);
-  return builder.build();
+  return [builder.build()];
 }
 
 /**
  * Action handler for refreshing the homepage card without duplicating card stack.
  */
 export function refreshGmailHomepageCard(e: any): GoogleAppsScript.Card_Service.ActionResponse {
-  const card = buildGmailHomepageCard(e);
+  const cards = buildGmailHomepageCard(e);
   return CardService.newActionResponseBuilder()
-    .setNavigation(CardService.newNavigation().updateCard(card))
+    .setNavigation(CardService.newNavigation().updateCard(cards[0]))
     .build();
 }
 
 /**
  * Builds native Google Workspace CardService UI when viewing a received or sent email message.
  */
-export function buildGmailMessageCard(e: any): GoogleAppsScript.Card_Service.Card {
+export function buildGmailMessageCard(e: any): GoogleAppsScript.Card_Service.Card[] {
   const builder = CardService.newCardBuilder();
   builder.setHeader(CardService.newCardHeader().setTitle('Email Accessibility Checker'));
 
@@ -247,7 +247,7 @@ export function buildGmailMessageCard(e: any): GoogleAppsScript.Card_Service.Car
 
       if (issues.length === 0) {
         section.addWidget(
-          CardService.newTextParagraph().setText('<b>✓ All Clear!</b><br>No WCAG 2.1 Level AA accessibility issues detected in this email.')
+          CardService.newTextParagraph().setText('<b>✓ All Clear!</b><br>No WCAG 2.1 Level AA link or image accessibility issues detected in this email.')
         );
       } else {
         section.addWidget(
@@ -266,5 +266,5 @@ export function buildGmailMessageCard(e: any): GoogleAppsScript.Card_Service.Car
   }
 
   builder.addSection(section);
-  return builder.build();
+  return [builder.build()];
 }

@@ -48,10 +48,15 @@ const forwardingCode = `
 function onOpen(e) { return _app.onOpen(e); }
 function showSidebar() { return _app.showSidebar(); }
 function populateTestCases(id) { return _app.populateTestCases(id); }
+function buildGmailComposeCard(e) { return _app.buildGmailComposeCard(e); }
+function buildGmailHomepageCard(e) { return _app.buildGmailHomepageCard(e); }
+function refreshGmailHomepageCard(e) { return _app.refreshGmailHomepageCard(e); }
+function buildGmailMessageCard(e) { return _app.buildGmailMessageCard(e); }
 function rpcGetHostType() { return _app.rpcGetHostType(); }
 function rpcRunChecks() { return _app.rpcRunChecks(); }
 function rpcSelectElement(id) { return _app.rpcSelectElement(id); }
 function rpcApplyFix(id, type, val) { return _app.rpcApplyFix(id, type, val); }
+function rpcGetImageBlob(id) { return _app.rpcGetImageBlob(id); }
 function rpcGetSlideElements(id) { return _app.rpcGetSlideElements(id); }
 function rpcApplyReadingOrder(id, ids) { return _app.rpcApplyReadingOrder(id, ids); }
 function rpcGetSettings() { return _app.rpcGetSettings(); }

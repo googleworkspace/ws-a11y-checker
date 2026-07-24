@@ -178,7 +178,8 @@ export function rpcApplyGmailFix(e: any): GoogleAppsScript.Card_Service.UpdateDr
     const newText = e.parameters['newText'] || `${oldText} (descriptive link)`;
     if (oldUrl && oldText) {
       const escapedUrl = oldUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(`(<a\\s+[^>]*href=["']${escapedUrl}["'][^>]*>)${oldText}(<\\/a>)`, 'gi');
+      const escapedText = oldText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(<a\\s+[^>]*href=["']${escapedUrl}["'][^>]*>)\\s*${escapedText}\\s*(<\\/a>)`, 'gi');
       updatedHtml = updatedHtml.replace(regex, `$1${newText}$2`);
     }
   } else if (fixType === 'ALT_TEXT') {
@@ -198,10 +199,32 @@ export function rpcApplyGmailFix(e: any): GoogleAppsScript.Card_Service.UpdateDr
     });
   }
 
+  // 1. Synchronize remediation directly to Google server draft storage
+  if (draftId && typeof GmailApp !== 'undefined') {
+    try {
+      const draft = GmailApp.getDraft(draftId);
+      if (draft) {
+        const msg = draft.getMessage();
+        draft.update(msg.getTo() || '', msg.getSubject() || '', msg.getPlainBody() || '', { htmlBody: updatedHtml });
+      }
+    } catch (err) {}
+  }
+  if (!draftId && typeof GmailApp !== 'undefined') {
+    try {
+      const drafts = GmailApp.getDrafts();
+      if (drafts && drafts.length > 0) {
+        const latestDraft = drafts[0];
+        const msg = latestDraft.getMessage();
+        latestDraft.update(msg.getTo() || '', msg.getSubject() || '', msg.getPlainBody() || '', { htmlBody: updatedHtml });
+      }
+    } catch (err) {}
+  }
+
+  // 2. Return UpdateDraftActionResponse with valid ContentType.MUTABLE_HTML enum
   const response = CardService.newUpdateDraftActionResponseBuilder()
     .setUpdateDraftBodyAction(
       CardService.newUpdateDraftBodyAction()
-        .addUpdateContent(updatedHtml, CardService.ContentType.TEXT)
+        .addUpdateContent(updatedHtml, CardService.ContentType.MUTABLE_HTML)
         .setUpdateType(CardService.UpdateDraftBodyType.REPLACE)
     )
     .build();

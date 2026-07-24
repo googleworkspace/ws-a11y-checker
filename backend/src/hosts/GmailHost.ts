@@ -71,7 +71,40 @@ export function auditGmailDraftHtml(htmlContent: string): AccessibilityIssue[] {
 }
 
 /**
- * Builds native Google Workspace CardService UI for Gmail compose window.
+ * Helper to retrieve draft HTML body and subject from event object or latest active draft in Gmail.
+ */
+function resolveDraftContent(e: any): { htmlBody: string; subject: string } {
+  let htmlBody = '';
+  let subject = '';
+
+  const draftId = e?.gmail?.draftId || e?.draftMetadata?.draftId || e?.gmail?.draftMetadata?.draftId || e?.draftId;
+
+  if (draftId && typeof GmailApp !== 'undefined') {
+    try {
+      const draft = GmailApp.getDraft(draftId);
+      if (draft) {
+        htmlBody = draft.getMessage().getBody();
+        subject = draft.getMessage().getSubject() || '(Untitled Draft)';
+      }
+    } catch (err) {}
+  }
+
+  if (!htmlBody && typeof GmailApp !== 'undefined') {
+    try {
+      const drafts = GmailApp.getDrafts();
+      if (drafts && drafts.length > 0) {
+        const latestDraft = drafts[0];
+        htmlBody = latestDraft.getMessage().getBody();
+        subject = latestDraft.getMessage().getSubject() || '(Untitled Draft)';
+      }
+    } catch (err) {}
+  }
+
+  return { htmlBody, subject };
+}
+
+/**
+ * Builds native Google Workspace CardService UI for Gmail compose window toolbar.
  */
 export function buildGmailComposeCard(e: any): GoogleAppsScript.Card_Service.Card {
   const builder = CardService.newCardBuilder();
@@ -80,29 +113,153 @@ export function buildGmailComposeCard(e: any): GoogleAppsScript.Card_Service.Car
   const section = CardService.newCardSection();
 
   try {
-    const draftId = e?.gmail?.draftId;
-    let htmlBody = '';
+    const { htmlBody, subject } = resolveDraftContent(e);
 
-    if (draftId && typeof GmailApp !== 'undefined') {
-      const draft = GmailApp.getDraft(draftId);
-      if (draft) {
-        htmlBody = draft.getMessage().getBody();
+    if (htmlBody) {
+      if (subject) {
+        section.addWidget(CardService.newTextParagraph().setText(`<b>Draft:</b> ${subject}`));
       }
+      const issues = auditGmailDraftHtml(htmlBody);
+
+      if (issues.length === 0) {
+        const textWidget = CardService.newTextParagraph().setText('<b>✓ All Clear!</b><br>No accessibility issues detected in your draft email.');
+        section.addWidget(textWidget);
+      } else {
+        const headerWidget = CardService.newTextParagraph().setText(`<b>Found ${issues.length} Accessibility Issue(s)</b>`);
+        section.addWidget(headerWidget);
+
+        issues.forEach((issue) => {
+          const keyText = `<b>${issue.severity}</b>: ${issue.title}<br><i>${issue.description}</i>`;
+          section.addWidget(CardService.newTextParagraph().setText(keyText));
+        });
+      }
+    } else {
+      section.addWidget(CardService.newTextParagraph().setText('<b>No active draft content detected.</b><br>Start typing in the compose window to audit your email.'));
+    }
+  } catch (err: any) {
+    section.addWidget(CardService.newTextParagraph().setText(`Audit Error: ${err.message || err}`));
+  }
+
+  builder.addSection(section);
+  return builder.build();
+}
+
+/**
+ * Builds native Google Workspace CardService UI for Gmail homepage / right-hand sidebar.
+ */
+export function buildGmailHomepageCard(e: any): GoogleAppsScript.Card_Service.Card {
+  const builder = CardService.newCardBuilder();
+  builder.setHeader(CardService.newCardHeader().setTitle('Email Accessibility Checker'));
+
+  const section = CardService.newCardSection();
+
+  try {
+    const { htmlBody, subject } = resolveDraftContent(e);
+
+    if (htmlBody) {
+      section.addWidget(
+        CardService.newTextParagraph().setText(`<b>Checking Draft:</b> ${subject || '(Untitled Draft)'}`)
+      );
+
+      const refreshAction = CardService.newAction().setFunctionName('refreshGmailHomepageCard');
+      section.addWidget(
+        CardService.newTextButton()
+          .setText('🔄 Refresh Audit')
+          .setOnClickAction(refreshAction)
+      );
+
+      const issues = auditGmailDraftHtml(htmlBody);
+
+      if (issues.length === 0) {
+        section.addWidget(
+          CardService.newTextParagraph().setText('<b>✓ All Clear!</b><br>No WCAG 2.1 Level AA accessibility issues detected in your draft email.')
+        );
+      } else {
+        section.addWidget(
+          CardService.newTextParagraph().setText(`<b>Found ${issues.length} Accessibility Issue(s)</b>`)
+        );
+        issues.forEach((issue) => {
+          const keyText = `<b>${issue.severity}</b>: ${issue.title}<br><i>${issue.description}</i>`;
+          section.addWidget(CardService.newTextParagraph().setText(keyText));
+        });
+      }
+    } else {
+      section.addWidget(
+        CardService.newTextParagraph().setText(
+          '<b>Welcome to Email Accessibility Checker!</b><br><br>To audit an email draft before sending, start composing a new email or reply in Gmail, then click <b>Check Current Draft</b> below.'
+        )
+      );
+      const checkAction = CardService.newAction().setFunctionName('refreshGmailHomepageCard');
+      section.addWidget(
+        CardService.newTextButton()
+          .setText('🔄 Check Current Draft')
+          .setOnClickAction(checkAction)
+      );
+    }
+  } catch (err: any) {
+    section.addWidget(CardService.newTextParagraph().setText(`Audit Error: ${err.message || err}`));
+  }
+
+  builder.addSection(section);
+  return builder.build();
+}
+
+/**
+ * Action handler for refreshing the homepage card without duplicating card stack.
+ */
+export function refreshGmailHomepageCard(e: any): GoogleAppsScript.Card_Service.ActionResponse {
+  const card = buildGmailHomepageCard(e);
+  return CardService.newActionResponseBuilder()
+    .setNavigation(CardService.newNavigation().updateCard(card))
+    .build();
+}
+
+/**
+ * Builds native Google Workspace CardService UI when viewing a received or sent email message.
+ */
+export function buildGmailMessageCard(e: any): GoogleAppsScript.Card_Service.Card {
+  const builder = CardService.newCardBuilder();
+  builder.setHeader(CardService.newCardHeader().setTitle('Email Accessibility Checker'));
+
+  const section = CardService.newCardSection();
+
+  try {
+    const messageId = e?.gmail?.messageId || e?.messageMetadata?.messageId || e?.gmail?.messageMetadata?.messageId;
+    let htmlBody = '';
+    let msgSubject = '';
+
+    if (messageId && typeof GmailApp !== 'undefined') {
+      try {
+        const msg = GmailApp.getMessageById(messageId);
+        if (msg) {
+          htmlBody = msg.getBody();
+          msgSubject = msg.getSubject() || '(Untitled Message)';
+        }
+      } catch (err) {}
     }
 
-    const issues = auditGmailDraftHtml(htmlBody);
+    if (htmlBody) {
+      section.addWidget(
+        CardService.newTextParagraph().setText(`<b>Auditing Message:</b> ${msgSubject}`)
+      );
 
-    if (issues.length === 0) {
-      const textWidget = CardService.newTextParagraph().setText('<b>✓ All Clear!</b><br>No accessibility issues detected in your draft email.');
-      section.addWidget(textWidget);
+      const issues = auditGmailDraftHtml(htmlBody);
+
+      if (issues.length === 0) {
+        section.addWidget(
+          CardService.newTextParagraph().setText('<b>✓ All Clear!</b><br>No WCAG 2.1 Level AA accessibility issues detected in this email.')
+        );
+      } else {
+        section.addWidget(
+          CardService.newTextParagraph().setText(`<b>Found ${issues.length} Accessibility Issue(s)</b>`)
+        );
+        issues.forEach((issue) => {
+          const keyText = `<b>${issue.severity}</b>: ${issue.title}<br><i>${issue.description}</i>`;
+          section.addWidget(CardService.newTextParagraph().setText(keyText));
+        });
+      }
     } else {
-      const headerWidget = CardService.newTextParagraph().setText(`<b>Found ${issues.length} Accessibility Issue(s)</b>`);
-      section.addWidget(headerWidget);
-
-      issues.forEach((issue) => {
-        const keyText = `<b>${issue.severity}</b>: ${issue.title}<br><i>${issue.description}</i>`;
-        section.addWidget(CardService.newTextParagraph().setText(keyText));
-      });
+      section.addWidget(CardService.newTextParagraph().setText('Could not load email message content for auditing.'));
     }
   } catch (err: any) {
     section.addWidget(CardService.newTextParagraph().setText(`Audit Error: ${err.message || err}`));

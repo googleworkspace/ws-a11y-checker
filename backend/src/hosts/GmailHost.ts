@@ -160,6 +160,39 @@ function resolveDraftContent(e: any): { htmlBody: string; subject: string; debug
 }
 
 /**
+ * Helper to check for OAuth scope permission errors and render an actionable re-authorization card.
+ */
+function checkAndRenderPermissionError(section: GoogleAppsScript.Card_Service.CardSection, debugLog: string[]): boolean {
+  const hasPermissionError = debugLog.some((l) =>
+    l.toLowerCase().includes('does not have permission') ||
+    l.toLowerCase().includes('required permissions') ||
+    l.toLowerCase().includes('authorization')
+  );
+
+  if (hasPermissionError) {
+    section.addWidget(
+      CardService.newTextParagraph().setText(
+        '<b>🔐 Authorization Required for Email Drafts</b><br><br>' +
+        'To audit your active draft email from the sidebar, Google Apps Script requires permission to inspect Gmail drafts (<code>gmail.readonly</code> / <code>gmail.compose</code>). Because these permissions were recently added to the add-on manifest, your current Gmail session is running under earlier permissions.<br><br>' +
+        '<b>How to grant permissions (takes 10 seconds):</b><br>' +
+        '1. Open any Google Doc, Slide, Sheet, or Form.<br>' +
+        '2. Go to top menu: <b>Extensions → Accessibility Checker → Show Sidebar</b>.<br>' +
+        '3. Google Apps Script will pop up an <b>Authorization Required</b> dialog. Click <b>Review Permissions → Allow</b>.<br>' +
+        '4. Return here to Gmail and click <b>Re-check Current Draft</b> below!'
+      )
+    );
+    const checkAction = CardService.newAction().setFunctionName('refreshGmailHomepageCard');
+    section.addWidget(
+      CardService.newTextButton()
+        .setText('🔄 Re-check Current Draft')
+        .setOnClickAction(checkAction)
+    );
+    return true;
+  }
+  return false;
+}
+
+/**
  * Helper to append diagnostic logs section to a CardBuilder.
  */
 function addDiagnosticLogSection(builder: GoogleAppsScript.Card_Service.CardBuilder, debugLog: string[]) {
@@ -211,16 +244,18 @@ export function buildGmailComposeCard(e: any): GoogleAppsScript.Card_Service.Car
         });
       }
     } else {
-      section.addWidget(
-        CardService.newTextParagraph().setText(
-          '<b>⚠️ No Active Draft Content Detected</b><br><br>' +
-          'When invoked, the add-on checks for your active email draft. No saved draft body was found right now.<br><br>' +
-          '<b>How to audit your email:</b><br>' +
-          '1. Type a recipient, subject, or message body in the compose window.<br>' +
-          '2. Wait ~2 seconds for Gmail to auto-save the draft to the server.<br>' +
-          '3. Re-open or click check below.'
-        )
-      );
+      if (!checkAndRenderPermissionError(section, debugLog)) {
+        section.addWidget(
+          CardService.newTextParagraph().setText(
+            '<b>⚠️ No Active Draft Content Detected</b><br><br>' +
+            'When invoked, the add-on checks for your active email draft. No saved draft body was found right now.<br><br>' +
+            '<b>How to audit your email:</b><br>' +
+            '1. Type a recipient, subject, or message body in the compose window.<br>' +
+            '2. Wait ~2 seconds for Gmail to auto-save the draft to the server.<br>' +
+            '3. Re-open or click check below.'
+          )
+        );
+      }
     }
 
     builder.addSection(section);
@@ -273,22 +308,24 @@ export function buildGmailHomepageCard(e: any): GoogleAppsScript.Card_Service.Ca
         });
       }
     } else {
-      section.addWidget(
-        CardService.newTextParagraph().setText(
-          '<b>⚠️ No Active Draft Content Found</b><br><br>' +
-          'When you click check, we search for your active email draft in Gmail. No saved draft body was found right now.<br><br>' +
-          '<b>How to check your email:</b><br>' +
-          '1. Start composing a new email or reply in Gmail.<br>' +
-          '2. Type a recipient, subject, or message body (wait ~2 seconds for Gmail to auto-save the draft to the server).<br>' +
-          '3. Click <b>Re-check Current Draft</b> below.'
-        )
-      );
-      const checkAction = CardService.newAction().setFunctionName('refreshGmailHomepageCard');
-      section.addWidget(
-        CardService.newTextButton()
-          .setText('🔄 Re-check Current Draft')
-          .setOnClickAction(checkAction)
-      );
+      if (!checkAndRenderPermissionError(section, debugLog)) {
+        section.addWidget(
+          CardService.newTextParagraph().setText(
+            '<b>⚠️ No Active Draft Content Found</b><br><br>' +
+            'When you click check, we search for your active email draft in Gmail. No saved draft body was found right now.<br><br>' +
+            '<b>How to check your email:</b><br>' +
+            '1. Start composing a new email or reply in Gmail.<br>' +
+            '2. Type a recipient, subject, or message body (wait ~2 seconds for Gmail to auto-save the draft to the server).<br>' +
+            '3. Click <b>Re-check Current Draft</b> below.'
+          )
+        );
+        const checkAction = CardService.newAction().setFunctionName('refreshGmailHomepageCard');
+        section.addWidget(
+          CardService.newTextButton()
+            .setText('🔄 Re-check Current Draft')
+            .setOnClickAction(checkAction)
+        );
+      }
     }
 
     builder.addSection(section);

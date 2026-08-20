@@ -22,7 +22,7 @@ import { AccessibilityIssue } from '../models/Issue';
 import { checkAltText } from './AltTextCheck';
 import { checkContrast } from './ContrastCheck';
 import { checkSlideElementOrder } from './ElementOrderCheck';
-import { checkHeadingStructureAndLists } from './HeadingCheck';
+import { checkHeadingStructureAndLists, SIMULATED_LIST_REGEX } from './HeadingCheck';
 import { checkHyperlink } from './HyperlinkCheck';
 import { checkTextAlignment, checkLineSpacing, checkEmptyParagraphSpacers } from './TypographyCheck';
 import { checkTableHeaders } from './TableCheck';
@@ -238,6 +238,25 @@ function runSlidesChecks(pres: GoogleAppsScript.Slides.Presentation): Accessibil
             if (runLinkUrl) {
               const linkIssue = checkHyperlink(id, type, runText, runLinkUrl);
               if (linkIssue) issues.push(linkIssue);
+            }
+          }
+
+          // Check for simulated list items in shape text
+          const lines = textStr.split(/\r?\n/);
+          for (const line of lines) {
+            if (SIMULATED_LIST_REGEX.test(line.trim())) {
+              issues.push({
+                elementId: id,
+                elementType: 'Text Shape',
+                issueType: 'List Formatting',
+                severity: 'NOTICE',
+                wcagRule: 'WCAG 1.3.1 Info and Relationships',
+                title: 'Simulated list items using manual characters',
+                description: 'Use native presentation bullet or numbering formatting so screen readers announce list structure.',
+                snippet: textStr.substring(0, 50),
+                canAutoFix: true,
+              });
+              break;
             }
           }
         }

@@ -47,6 +47,18 @@ import { I18nService } from '../../services/i18n.service';
             </select>
           </div>
 
+          <!-- Gemini AI Settings -->
+          <div class="setting-group">
+            <label class="setting-title" id="ai-label">{{ i18n.t('aiSettingsTitle') }}</label>
+            <p class="setting-desc">{{ i18n.t('aiSettingsDesc') }}</p>
+            <input type="password" class="google-input" [(ngModel)]="localSettings.geminiApiKey" placeholder="AIzaSy... (Optional)" />
+            <select class="google-select" [(ngModel)]="localSettings.aiModel" style="margin-top: 6px;">
+              <option value="gemini-1.5-flash">Gemini 1.5 Flash (Fast & Lightweight)</option>
+              <option value="gemini-2.5-flash">Gemini 2.5 Flash (Latest)</option>
+              <option value="gemini-1.5-pro">Gemini 1.5 Pro (High Reasoning)</option>
+            </select>
+          </div>
+
           <div class="setting-group">
             <label class="setting-title" id="contrast-mode-label">{{ i18n.t('contrastModeLabel') }}</label>
             <p class="setting-desc">{{ i18n.t('contrastModeDesc') }}</p>
@@ -107,9 +119,10 @@ import { I18nService } from '../../services/i18n.service';
     .setting-group { display: flex; flex-direction: column; gap: 6px; }
     .setting-title { font-size: 13px; font-weight: 500; color: #202124; }
     .setting-desc { font-size: 12px; color: #5f6368; margin: 0 0 4px 0; }
-    .google-select {
+    .google-select, .google-input {
       padding: 6px 12px; border: 1px solid #dadce0; border-radius: 4px;
-      font-size: 13px; color: #202124; background: #ffffff;
+      font-size: 13px; color: #202124; background: #ffffff; width: 100%;
+      box-sizing: border-box;
     }
     .radio-options { display: flex; flex-direction: column; gap: 12px; }
     .radio-item, .checkbox-item { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
@@ -120,7 +133,7 @@ import { I18nService } from '../../services/i18n.service';
   `]
 })
 export class SettingsPanelComponent {
-  @Input() settings: Settings = { contrastFixMode: 'PRESERVE_HSL', enableAutoRemediation: false, language: 'AUTO' };
+  @Input() settings: Settings = { contrastFixMode: 'PRESERVE_HSL', enableAutoRemediation: false, geminiApiKey: '', aiModel: 'gemini-1.5-flash', language: 'AUTO' };
   @Output() close = new EventEmitter<void>();
   @Output() save = new EventEmitter<Settings>();
 

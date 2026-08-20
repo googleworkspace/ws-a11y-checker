@@ -27,6 +27,16 @@ import { LiteRtService } from '../../services/litert.service';
   imports: [CommonModule, FormsModule],
   template: `
     <div class="issue-list-container" role="region" aria-label="Detected Accessibility Issues">
+      <div *ngIf="fixableCount > 1" class="fix-all-banner" role="region" aria-label="Bulk Remediation">
+        <div class="banner-text">
+          <strong>⚡ {{ fixableCount }} Auto-Remediable Issues</strong>
+          <span>Apply 1-click automatic fixes to all eligible items at once.</span>
+        </div>
+        <button type="button" class="fix-all-btn" (click)="onFixAll()">
+          {{ i18n.t('fixAllBtn') || 'Fix All' }} ({{ fixableCount }})
+        </button>
+      </div>
+
       <div *ngIf="issues.length === 0" class="success-card" role="status">
         <div class="success-icon">✓</div>
         <div class="success-text">
@@ -66,12 +76,12 @@ import { LiteRtService } from '../../services/litert.service';
           </div>
         </div>
 
-        <!-- LiteRT.js AI Alt Text Generator Box -->
+        <!-- AI Alt Text Generator Box -->
         <div *ngIf="issue.issueType === 'Alternative Text'" class="litert-box">
           <div class="litert-header">
-            <span class="litert-badge">✨ LiteRT.js On-Device AI</span>
-            <button type="button" class="litert-gen-btn" (click)="generateAiAltText(issue)">
-              {{ altTextSuggestions[issue.elementId] ? 'Re-generate' : 'Generate Alt Text with LiteRT.js' }}
+            <span class="litert-badge">✨ AI Accessibility Evaluator (Gemini & LiteRT Vision)</span>
+            <button type="button" class="litert-gen-btn" [disabled]="loadingAi[issue.elementId]" (click)="generateAiAltText(issue)">
+              {{ loadingAi[issue.elementId] ? 'Evaluating Image...' : (altTextSuggestions[issue.elementId] ? 'Re-evaluate with AI' : 'Evaluate Image & Suggest Alt Text (AI)') }}
             </button>
           </div>
 
@@ -81,12 +91,12 @@ import { LiteRtService } from '../../services/litert.service';
           </div>
         </div>
 
-        <!-- LiteRT.js AI Link Title Generator Box -->
+        <!-- AI Link Title Generator Box -->
         <div *ngIf="issue.issueType === 'Meaningful Hyperlinks'" class="litert-box">
           <div class="litert-header">
-            <span class="litert-badge">✨ LiteRT.js NLP AI</span>
-            <button type="button" class="litert-gen-btn" (click)="generateAiLinkTitle(issue)">
-              {{ linkTitleSuggestions[issue.elementId] ? 'Re-generate' : 'Suggest Title with LiteRT.js' }}
+            <span class="litert-badge">✨ AI Accessibility Evaluator (Gemini & LiteRT NLP)</span>
+            <button type="button" class="litert-gen-btn" [disabled]="loadingAi[issue.elementId]" (click)="generateAiLinkTitle(issue)">
+              {{ loadingAi[issue.elementId] ? 'Rewriting Link...' : (linkTitleSuggestions[issue.elementId] ? 'Re-generate with AI' : 'Rewrite Link with AI') }}
             </button>
           </div>
 
@@ -109,6 +119,18 @@ import { LiteRtService } from '../../services/litert.service';
   `,
   styles: [`
     .issue-list-container { display: flex; flex-direction: column; gap: 12px; }
+    .fix-all-banner {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 12px 14px; background: #e8f0fe; border: 1px solid #d2e3fc; border-radius: 8px;
+    }
+    .banner-text strong { display: block; font-size: 13px; color: #1a73e8; font-weight: 700; }
+    .banner-text span { font-size: 11px; color: #3c4043; }
+    button.fix-all-btn {
+      background: #188038; border: 1px solid #188038; color: #fff;
+      font-size: 12px; font-weight: 700; padding: 6px 14px; border-radius: 4px;
+      cursor: pointer; white-space: nowrap;
+    }
+    button.fix-all-btn:hover { background: #137333; }
     .success-card { display: flex; align-items: center; gap: 14px; padding: 16px; background: #e6f4ea; border: 1px solid #ceead6; border-radius: 8px; }
     .success-icon { width: 36px; height: 36px; background: #188038; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; }
     .success-text h3 { margin: 0; font-size: 14px; font-weight: 500; color: #0d652d; }
@@ -161,7 +183,8 @@ import { LiteRtService } from '../../services/litert.service';
       border: 1px solid #1a73e8;
       color: #1a73e8;
     }
-    button.litert-gen-btn:hover { background: #d2e3fc; }
+    button.litert-gen-btn:hover:not(:disabled) { background: #d2e3fc; }
+    button.litert-gen-btn:disabled { opacity: 0.6; cursor: not-allowed; }
     .litert-suggestion { display: flex; flex-direction: column; gap: 4px; }
     .litert-label { font-size: 10px; font-weight: 500; color: #5f6368; }
     .litert-input {
@@ -183,31 +206,71 @@ export class IssueListComponent {
   @Input() issues: Issue[] = [];
   @Output() select = new EventEmitter<string>();
   @Output() fix = new EventEmitter<{ issue: Issue; value?: string }>();
+  @Output() fixAll = new EventEmitter<{ altMap: Record<string, string>; linkMap: Record<string, string> }>();
 
   altTextSuggestions: Record<string, string> = {};
   linkTitleSuggestions: Record<string, string> = {};
+  loadingAi: Record<string, boolean> = {};
 
   constructor(public i18n: I18nService, private liteRt: LiteRtService) {}
 
+  get fixableCount(): number {
+    return this.issues.filter(i => i.canAutoFix).length;
+  }
+
+  onFixAll(): void {
+    this.fixAll.emit({ altMap: this.altTextSuggestions, linkMap: this.linkTitleSuggestions });
+  }
+
   async generateAiAltText(issue: Issue): Promise<void> {
-    const currentAlt = issue.fixMetadata?.currentAlt || '';
-    const caption = await this.liteRt.generateAltTextForElement(issue.elementId, currentAlt);
-    this.altTextSuggestions[issue.elementId] = caption;
+    this.loadingAi[issue.elementId] = true;
+    try {
+      const currentAlt = issue.fixMetadata?.currentAlt || '';
+      const caption = await this.liteRt.generateAltTextForElement(issue.elementId, currentAlt);
+      this.altTextSuggestions[issue.elementId] = caption;
+    } finally {
+      this.loadingAi[issue.elementId] = false;
+    }
   }
 
   async generateAiLinkTitle(issue: Issue): Promise<void> {
-    const currentAnchor = issue.fixMetadata?.currentAnchor || issue.snippet || '';
-    const url = issue.fixMetadata?.url || '';
-    const title = await this.liteRt.suggestLinkAnchor(currentAnchor, issue.description, url);
-    this.linkTitleSuggestions[issue.elementId] = title;
+    this.loadingAi[issue.elementId] = true;
+    try {
+      const currentAnchor = issue.fixMetadata?.currentAnchor || issue.snippet || '';
+      const url = issue.fixMetadata?.url || '';
+      const title = await this.liteRt.suggestLinkAnchor(currentAnchor, issue.description, url);
+      this.linkTitleSuggestions[issue.elementId] = title;
+    } finally {
+      this.loadingAi[issue.elementId] = false;
+    }
   }
 
-  onApplyFix(issue: Issue): void {
+  async onApplyFix(issue: Issue): Promise<void> {
     if (issue.issueType === 'Alternative Text') {
-      const suggested = this.altTextSuggestions[issue.elementId] || issue.fixMetadata?.suggestedCleanAlt || 'Visual element graphic';
+      let suggested = this.altTextSuggestions[issue.elementId] || issue.fixMetadata?.suggestedCleanAlt;
+      if (!suggested) {
+        this.loadingAi[issue.elementId] = true;
+        try {
+          suggested = await this.liteRt.generateAltTextForElement(issue.elementId, issue.fixMetadata?.currentAlt);
+          this.altTextSuggestions[issue.elementId] = suggested;
+        } finally {
+          this.loadingAi[issue.elementId] = false;
+        }
+      }
       this.fix.emit({ issue, value: suggested });
     } else if (issue.issueType === 'Meaningful Hyperlinks') {
-      const suggestedLink = this.linkTitleSuggestions[issue.elementId] || 'WCAG 2.1 AA Reference Documentation';
+      let suggestedLink = this.linkTitleSuggestions[issue.elementId];
+      if (!suggestedLink) {
+        this.loadingAi[issue.elementId] = true;
+        try {
+          const currentAnchor = issue.fixMetadata?.currentAnchor || issue.snippet || '';
+          const url = issue.fixMetadata?.url || '';
+          suggestedLink = await this.liteRt.suggestLinkAnchor(currentAnchor, issue.description, url);
+          this.linkTitleSuggestions[issue.elementId] = suggestedLink;
+        } finally {
+          this.loadingAi[issue.elementId] = false;
+        }
+      }
       this.fix.emit({ issue, value: suggestedLink });
     } else {
       this.fix.emit({ issue, value: issue.fixMetadata?.suggestedHex || issue.fixMetadata?.suggestedHeadingLevel });

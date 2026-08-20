@@ -19,6 +19,8 @@
  */
 import { AccessibilityIssue } from '../models/Issue';
 
+export const SIMULATED_LIST_REGEX = /^(\s*([*•▪▫►❖➢·⁃\u2013\u2014]|[-+](?=\s)|(o|O)(?=\s)|\d+[\.\)]|[a-zA-Z][\.\)]|\([0-9a-zA-Z]\))(\s*))/;
+
 /**
  * Scans document paragraphs for heading structure issues, faux headings, and manual bullet lists,
  * ensuring logical cascading starting from Heading 1.
@@ -131,21 +133,21 @@ export function checkHeadingStructureAndLists(
           hasTitleOrH1 = true;
         }
       }
+    }
 
-      // Check 3: Simulated list items (e.g. "- item" or "* item")
-      if (/^([-*•]|\d+\.)\s+/.test(text) && p.getType() !== DocumentApp.ElementType.LIST_ITEM) {
-        issues.push({
-          elementId,
-          elementType: 'Paragraph',
-          issueType: 'List Formatting',
-          severity: 'NOTICE',
-          wcagRule: 'WCAG 1.3.1 Info and Relationships',
-          title: 'Simulated list item using manual characters',
-          description: 'Use native semantic list formatting so screen readers announce item counts and positions.',
-          snippet: text.substring(0, 50),
-          canAutoFix: true,
-        });
-      }
+    // Check 3: Simulated list items (any paragraph that is not a native list item but starts with manual list characters)
+    if (p.getType() !== DocumentApp.ElementType.LIST_ITEM && SIMULATED_LIST_REGEX.test(text)) {
+      issues.push({
+        elementId,
+        elementType: 'Paragraph',
+        issueType: 'List Formatting',
+        severity: 'NOTICE',
+        wcagRule: 'WCAG 1.3.1 Info and Relationships',
+        title: 'Simulated list item using manual characters',
+        description: 'Use native semantic list formatting so screen readers announce item counts and hierarchy.',
+        snippet: text.substring(0, 50),
+        canAutoFix: true,
+      });
     }
   }
 

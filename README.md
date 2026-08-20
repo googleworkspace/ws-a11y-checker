@@ -107,4 +107,4 @@ The extension supports multi-language display across all UI components and repor
 
 ## 📜 License
 
-Internal Google Workspace Open Source Project. All Rights Reserved.
+Licensed under the [Apache License, Version 2.0](LICENSE).

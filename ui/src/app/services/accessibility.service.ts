@@ -36,6 +36,8 @@ import { I18nService } from './i18n.service';
 export interface Settings {
   contrastFixMode: 'PRESERVE_HSL' | 'SNAP_MATERIAL';
   enableAutoRemediation: boolean;
+  geminiApiKey?: string;
+  aiModel?: string;
   language?: string;
   userLocale?: string;
 }
@@ -57,6 +59,8 @@ export class AccessibilityService {
   private settingsSubject = new BehaviorSubject<Settings>({
     contrastFixMode: 'PRESERVE_HSL',
     enableAutoRemediation: false,
+    geminiApiKey: '',
+    aiModel: 'gemini-1.5-flash',
     language: 'AUTO',
   });
   readonly settings$ = this.settingsSubject.asObservable();
@@ -106,13 +110,49 @@ export class AccessibilityService {
   }
 
   async applyFix(issue: Issue, fixValue?: string): Promise<void> {
-    const success = await this.gScript.run<boolean>('rpcApplyFix', issue.elementId, issue.issueType, fixValue);
+    const success = await this.gScript.run<boolean>('rpcApplyFix', issue.elementId, issue.issueType, fixValue, issue.fixMetadata);
     if (success) {
       this.announce(`Fixed issue: ${issue.title}`);
       const updated = this.issuesSubject.value.filter((i) => i.elementId !== issue.elementId);
       this.issuesSubject.next(updated);
       this.notifyUI();
     }
+  }
+
+  async applyAllFixes(altMap: Record<string, string> = {}, linkMap: Record<string, string> = {}): Promise<void> {
+    const currentIssues = [...this.issuesSubject.value];
+    const fixableIssues = currentIssues.filter((i) => i.canAutoFix);
+    if (fixableIssues.length === 0) {
+      this.announce('No auto-remediable issues found to fix.');
+      return;
+    }
+
+    this.loadingSubject.next(true);
+    this.announce(`Applying automatic fixes to ${fixableIssues.length} issues...`);
+
+    let fixedCount = 0;
+    for (const issue of fixableIssues) {
+      try {
+        let fixValue = undefined;
+        if (issue.issueType === 'Alternative Text') {
+          fixValue = altMap[issue.elementId] || issue.fixMetadata?.suggestedCleanAlt || 'Descriptive visual graphic';
+        } else if (issue.issueType === 'Meaningful Hyperlinks') {
+          fixValue = linkMap[issue.elementId] || issue.fixMetadata?.suggestedText || 'WCAG 2.1 AA Reference Documentation';
+        } else {
+          fixValue = issue.fixMetadata?.suggestedHex || issue.fixMetadata?.suggestedHeadingLevel;
+        }
+
+        const success = await this.gScript.run<boolean>('rpcApplyFix', issue.elementId, issue.issueType, fixValue, issue.fixMetadata);
+        if (success) {
+          fixedCount++;
+        }
+      } catch (err) {
+        console.warn(`Failed to auto-fix issue ${issue.elementId}:`, err);
+      }
+    }
+
+    this.announce(`Successfully auto-fixed ${fixedCount} issues! Updating scan results...`);
+    await this.scanDocument();
   }
 
   async loadSettings(): Promise<void> {

@@ -53,15 +53,22 @@ function buildGmailHomepageCard(e) { return _app.buildGmailHomepageCard(e); }
 function refreshGmailHomepageCard(e) { return _app.refreshGmailHomepageCard(e); }
 function buildGmailMessageCard(e) { return _app.buildGmailMessageCard(e); }
 function rpcApplyGmailFix(e) { return _app.rpcApplyGmailFix(e); }
+function rpcApplyAllGmailFixes(e) { return _app.rpcApplyAllGmailFixes(e); }
 function rpcGetHostType() { return _app.rpcGetHostType(); }
 function rpcRunChecks() { return _app.rpcRunChecks(); }
 function rpcSelectElement(id) { return _app.rpcSelectElement(id); }
-function rpcApplyFix(id, type, val) { return _app.rpcApplyFix(id, type, val); }
+function rpcApplyFix(id, type, val, meta) { return _app.rpcApplyFix(id, type, val, meta); }
 function rpcGetImageBlob(id) { return _app.rpcGetImageBlob(id); }
 function rpcGetSlideElements(id) { return _app.rpcGetSlideElements(id); }
 function rpcApplyReadingOrder(id, ids) { return _app.rpcApplyReadingOrder(id, ids); }
 function rpcGetSettings() { return _app.rpcGetSettings(); }
 function rpcSaveSettings(s) { return _app.rpcSaveSettings(s); }
+function rpcGenerateAiAltText(id, alt) { return _app.rpcGenerateAiAltText(id, alt); }
+function rpcGenerateAiLinkTitle(anchor, ctx, url) { return _app.rpcGenerateAiLinkTitle(anchor, ctx, url); }
+function rpcPopulateGmailDemo(e) { return _app.rpcPopulateGmailDemo(e); }
+function rpcScanLatestDraft(e) { return _app.rpcScanLatestDraft(e); }
+function setupGcpProjectId(id) { return _app.setupGcpProjectId(id); }
+function forceReauthorizeScopes() { return _app.forceReauthorizeScopes(); }
 `;
 
 const codePath = path.join(distDir, 'Code.js');

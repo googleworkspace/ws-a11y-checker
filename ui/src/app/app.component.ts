@@ -68,7 +68,8 @@ import { HelpModalComponent } from './components/help-modal/help-modal.component
         [selectedFilter]="selectedFilter"
         (scan)="runScan()"
         (openReadingOrder)="showReadingOrder = true"
-        (filterSelect)="selectedFilter = $event">
+        (filterSelect)="selectedFilter = $event"
+        (fixAll)="onFixAll()">
       </app-dashboard>
 
       <div *ngIf="loading$ | async" class="loading-bar" role="progressbar" aria-label="Scanning document">
@@ -80,7 +81,8 @@ import { HelpModalComponent } from './components/help-modal/help-modal.component
         *ngIf="!(loading$ | async)"
         [issues]="getFilteredIssues((issues$ | async) || [])"
         (select)="onSelect($event)"
-        (fix)="onFix($event)">
+        (fix)="onFix($event)"
+        (fixAll)="onFixAll($event)">
       </app-issue-list>
     </main>
 
@@ -229,6 +231,10 @@ export class AppComponent implements OnInit {
 
   onFix(event: { issue: Issue; value?: string }): void {
     this.a11y.applyFix(event.issue, event.value);
+  }
+
+  onFixAll(maps?: { altMap: Record<string, string>; linkMap: Record<string, string> }): void {
+    this.a11y.applyAllFixes(maps?.altMap, maps?.linkMap);
   }
 
   onSaveSettings(settings: Settings): void {

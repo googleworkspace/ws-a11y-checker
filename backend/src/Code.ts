@@ -18,10 +18,12 @@
  * Entrypoint functions exported to Google Apps Script runtime.
  */
 import { runAllChecks } from './checks/CheckRunner';
+import { SIMULATED_LIST_REGEX } from './checks/HeadingCheck';
 import { applySlideReadingOrder, getSlideElementsAST, SlideElementAST } from './checks/ElementOrderCheck';
-import { buildGmailComposeCard, buildGmailHomepageCard, refreshGmailHomepageCard, buildGmailMessageCard, rpcApplyGmailFix } from './hosts/GmailHost';
+import { buildGmailComposeCard, buildGmailHomepageCard, refreshGmailHomepageCard, buildGmailMessageCard, rpcApplyGmailFix, rpcApplyAllGmailFixes, rpcPopulateGmailDemo, rpcScanLatestDraft, forceReauthorizeScopes } from './hosts/GmailHost';
 import { AccessibilityIssue } from './models/Issue';
 import { AddonSettings, DEFAULT_SETTINGS } from './models/Settings';
+import { rpcGetImageBlob, generateAiAltText, generateAiLinkTitle } from './utils/AiUtil';
 
 /**
  * Creates menu item in Extensions menu when document or slide deck opens.
@@ -387,7 +389,7 @@ function rpcSelectElement(elementId: string): void {
 /**
  * RPC: Applies one-click auto-fix to an element.
  */
-function rpcApplyFix(elementId: string, fixType: string, suggestedValue?: string): boolean {
+function rpcApplyFix(elementId: string, fixType: string, suggestedValue?: string, metadata?: any): boolean {
   try {
     const doc = DocumentApp.getActiveDocument();
     if (doc) {
@@ -409,7 +411,8 @@ function rpcApplyFix(elementId: string, fixType: string, suggestedValue?: string
         const idx = parseInt(elementId.replace('doc_img_', ''), 10);
         const img = doc.getBody().getImages()[idx];
         if (img && fixType === 'Alternative Text' && suggestedValue) {
-          img.setAltTextDescription(suggestedValue);
+          img.setAltDescription(suggestedValue);
+          try { img.setAltTitle(''); } catch (e) {}
           return true;
         }
       }
@@ -454,16 +457,53 @@ function rpcApplyFix(elementId: string, fixType: string, suggestedValue?: string
           if (fixType === 'Meaningful Hyperlinks' && suggestedValue) {
             const textEl = p.editAsText();
             const textStr = textEl.getText();
-            let linkUrl = '';
+            const targetUrl = metadata?.url || '';
+            const targetAnchor = (metadata?.currentAnchor || '').toLowerCase().trim();
+
+            let startIdx = -1;
+            let foundUrl = '';
             for (let c = 0; c < textStr.length; c++) {
               const u = textEl.getLinkUrl(c);
-              if (u) { linkUrl = u; break; }
+              if (u && (!targetUrl || u === targetUrl)) {
+                if (startIdx === -1) startIdx = c;
+                foundUrl = u;
+              } else {
+                if (startIdx !== -1) {
+                  const spanText = textStr.substring(startIdx, c).trim();
+                  const spanLower = spanText.toLowerCase();
+                  if (!targetAnchor || spanLower === targetAnchor || spanLower.includes(targetAnchor) || targetAnchor.includes(spanLower) || ['click here', 'learn more', 'this document', 'this page', 'this', 'here', 'link', 'more info', 'refer to this'].some(k => spanLower.includes(k))) {
+                    textEl.deleteText(startIdx, c - 1);
+                    textEl.insertText(startIdx, suggestedValue);
+                    textEl.setLinkUrl(startIdx, startIdx + suggestedValue.length - 1, foundUrl);
+                    return true;
+                  }
+                  startIdx = -1;
+                }
+              }
             }
-            if (linkUrl) {
-              const lower = textStr.toLowerCase();
-              const kwMatch = ['click here', 'learn more', 'this document', 'this page', 'this', 'here', 'link'].find(k => lower.includes(k));
-              if (kwMatch) {
-                const kwIdx = lower.indexOf(kwMatch);
+            if (startIdx !== -1) {
+              const spanText = textStr.substring(startIdx, textStr.length).trim();
+              const spanLower = spanText.toLowerCase();
+              if (!targetAnchor || spanLower === targetAnchor || spanLower.includes(targetAnchor) || targetAnchor.includes(spanLower) || ['click here', 'learn more', 'this document', 'this page', 'this', 'here', 'link', 'more info', 'refer to this'].some(k => spanLower.includes(k))) {
+                textEl.deleteText(startIdx, textStr.length - 1);
+                textEl.insertText(startIdx, suggestedValue);
+                textEl.setLinkUrl(startIdx, startIdx + suggestedValue.length - 1, foundUrl);
+                return true;
+              }
+            }
+            // Fallback keyword search if URL span matching didn't trigger
+            const lower = textStr.toLowerCase();
+            const kwMatch = (targetAnchor ? [targetAnchor] : []).concat(['click here', 'learn more', 'this document', 'this page', 'this', 'here', 'link', 'more info', 'refer to this']).find(k => lower.includes(k));
+            if (kwMatch) {
+              const kwIdx = lower.indexOf(kwMatch);
+              let linkUrl = targetUrl;
+              if (!linkUrl) {
+                for (let c = kwIdx; c < kwIdx + kwMatch.length; c++) {
+                  const u = textEl.getLinkUrl(c);
+                  if (u) { linkUrl = u; break; }
+                }
+              }
+              if (linkUrl) {
                 textEl.deleteText(kwIdx, kwIdx + kwMatch.length - 1);
                 textEl.insertText(kwIdx, suggestedValue);
                 textEl.setLinkUrl(kwIdx, kwIdx + suggestedValue.length - 1, linkUrl);
@@ -473,7 +513,7 @@ function rpcApplyFix(elementId: string, fixType: string, suggestedValue?: string
           }
           if (fixType === 'List Formatting') {
             const raw = p.getText();
-            const cleaned = raw.replace(/^([-*•]|\d+\.)\s+/, '');
+            const cleaned = raw.replace(SIMULATED_LIST_REGEX, '').trim();
             p.editAsText().setText(cleaned);
             const listItem = doc.getBody().insertListItem(doc.getBody().getChildIndex(p), cleaned);
             listItem.setGlyphType(DocumentApp.GlyphType.BULLET);
@@ -498,10 +538,42 @@ function rpcApplyFix(elementId: string, fixType: string, suggestedValue?: string
             el.asShape().getText().getTextStyle().setForegroundColor(suggestedValue);
             return true;
           }
+          if (fixType === 'Meaningful Hyperlinks' && suggestedValue) {
+            const textRange = el.asShape().getText();
+            const runs = textRange.getRuns();
+            const targetAnchor = (metadata?.currentAnchor || '').toLowerCase().trim();
+            for (let rIdx = 0; rIdx < runs.length; rIdx++) {
+              const run = runs[rIdx];
+              const linkUrl = run.getTextStyle().getLink()?.getUrl();
+              if (linkUrl && (!metadata?.url || linkUrl === metadata.url)) {
+                const runText = run.asString().trim();
+                const runLower = runText.toLowerCase();
+                if (!targetAnchor || runLower === targetAnchor || runLower.includes(targetAnchor) || targetAnchor.includes(runLower) || ['click here', 'learn more', 'this document', 'this page', 'this', 'here', 'link', 'more info', 'refer to this'].some(k => runLower.includes(k))) {
+                  run.setText(suggestedValue);
+                  run.getTextStyle().setLinkUrl(linkUrl);
+                  return true;
+                }
+              }
+            }
+          }
+          if (fixType === 'List Formatting') {
+            const shape = el.asShape();
+            const textRange = shape.getText();
+            const rawText = textRange.asString();
+            const cleanedLines = rawText.split(/\r?\n/).map(l => l.replace(SIMULATED_LIST_REGEX, '').trim()).filter(l => l.length > 0);
+            textRange.setText(cleanedLines.join('\n'));
+            try {
+              textRange.getListStyle().applyListPreset(SlidesApp.ListPreset.DISC_CIRCLE_SQUARE);
+            } catch (err) {
+              console.warn('Could not apply list preset in Slides:', err);
+            }
+            return true;
+          }
         }
         if (el.getPageElementType() === SlidesApp.PageElementType.IMAGE) {
           if (fixType === 'Alternative Text' && suggestedValue) {
             el.asImage().setDescription(suggestedValue);
+            try { el.asImage().setTitle(''); } catch (e) {}
             return true;
           }
         }
@@ -515,74 +587,66 @@ function rpcApplyFix(elementId: string, fixType: string, suggestedValue?: string
 }
 
 /**
- * RPC: Retrieves image Base64 data for AI alt text generation.
+ * RPC: Generates alternative text for an image using Google Gemini API if key is available, or smart backend NLP fallback.
  */
-function rpcGetImageBlob(elementId: string): string {
+function rpcGenerateAiAltText(elementId: string, currentAlt?: string, base64DataParam?: string): string {
+  return generateAiAltText(elementId, currentAlt, base64DataParam);
+}
+
+/**
+ * RPC: Generates a descriptive link anchor title using Gemini API or syntactic NLP rules.
+ */
+function rpcGenerateAiLinkTitle(anchorText: string, sentenceContext?: string, url?: string): string {
+  return generateAiLinkTitle(anchorText, sentenceContext, url);
+}
+
+/**
+ * RPC: Gets the user settings
+ */
+function rpcGetSettings(): AddonSettings {
   try {
-    const doc = DocumentApp.getActiveDocument();
-    if (doc && elementId.startsWith('doc_img_')) {
-      const idx = parseInt(elementId.replace('doc_img_', ''), 10);
-      const img = doc.getBody().getImages()[idx];
-      if (img) {
-        return Utilities.base64Encode(img.getBlob().getBytes());
-      }
-    }
-  } catch (e) {}
+    const props = PropertiesService.getUserProperties().getProperties();
+    return {
+      ...DEFAULT_SETTINGS,
+      ...props,
+      enableAutoRemediation: props['enableAutoRemediation'] === 'true'
+    } as AddonSettings;
+  } catch (e) {
+    return DEFAULT_SETTINGS;
+  }
+}
 
+/**
+ * RPC: Saves the user settings
+ */
+function rpcSaveSettings(settings: AddonSettings): void {
   try {
-    const pres = SlidesApp.getActivePresentation();
-    if (pres) {
-      const el = pres.getPageElementById(elementId);
-      if (el && el.getPageElementType() === SlidesApp.PageElementType.IMAGE) {
-        return Utilities.base64Encode(el.asImage().getBlob().getBytes());
-      }
-    }
-  } catch (e) {}
-
-  return '';
-}
-
-
-/**
- * RPC: Gets slide elements AST for drag and drop reordering modal.
- */
-function rpcGetSlideElements(slideId: string): SlideElementAST[] {
-  return getSlideElementsAST(slideId);
+    const props: Record<string, string> = {
+      contrastFixMode: settings.contrastFixMode || 'PRESERVE_HSL',
+      enableAutoRemediation: settings.enableAutoRemediation ? 'true' : 'false',
+      geminiApiKey: settings.geminiApiKey || '',
+      aiModel: settings.aiModel || 'gemini-1.5-flash',
+      language: settings.language || 'AUTO'
+    };
+    PropertiesService.getUserProperties().setProperties(props);
+  } catch (e) {
+    console.error('Failed to save settings:', e);
+  }
 }
 
 /**
- * RPC: Applies new z-index reading order to slide.
+ * Admin Setup Function: Invoked via Apps Script Editor or CLI to push the GCP Project ID as a Script Property.
+ * This ensures end-users cannot view or alter the project ID.
  */
-function rpcApplyReadingOrder(slideId: string, orderedIds: string[]): void {
-  applySlideReadingOrder(slideId, orderedIds);
-}
-
-/**
- * RPC: Gets user settings and detected Workspace locale.
- */
-function rpcGetSettings(): any {
-  const props = PropertiesService.getUserProperties().getProperties();
-  let userLocale = 'en';
-  try {
-    userLocale = Session.getActiveUserLocale() || 'en';
-  } catch (e) {}
-  return {
-    contrastFixMode: props.contrastFixMode || 'PRESERVE_HSL',
-    enableAutoRemediation: props.enableAutoRemediation === 'true',
-    language: props.language || 'AUTO',
-    userLocale: userLocale,
-  };
-}
-
-/**
- * RPC: Saves user settings.
- */
-function rpcSaveSettings(settings: any): void {
-  PropertiesService.getUserProperties().setProperties({
-    contrastFixMode: settings.contrastFixMode || 'PRESERVE_HSL',
-    enableAutoRemediation: String(settings.enableAutoRemediation),
-    language: settings.language || 'AUTO',
-  });
+function setupGcpProjectId(projectId: string): string {
+  if (!projectId || typeof projectId !== 'string' || !projectId.trim()) {
+    throw new Error('Please specify a valid GCP Project ID. Usage: setupGcpProjectId("your-gcp-project-id")');
+  }
+  const targetId = projectId.trim();
+  PropertiesService.getScriptProperties().setProperty('gcpProjectId', targetId);
+  const msg = `Successfully set Script Property "gcpProjectId" to "${targetId}".`;
+  console.log(msg);
+  return msg;
 }
 
 export {
@@ -594,6 +658,7 @@ export {
   refreshGmailHomepageCard,
   buildGmailMessageCard,
   rpcApplyGmailFix,
+  rpcApplyAllGmailFixes,
   rpcGetHostType,
   rpcRunChecks,
   rpcSelectElement,
@@ -603,5 +668,11 @@ export {
   rpcApplyReadingOrder,
   rpcGetSettings,
   rpcSaveSettings,
+  rpcGenerateAiAltText,
+  rpcGenerateAiLinkTitle,
+  rpcPopulateGmailDemo,
+  rpcScanLatestDraft,
+  setupGcpProjectId,
+  forceReauthorizeScopes,
 };
 

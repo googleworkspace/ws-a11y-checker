@@ -61,6 +61,9 @@ import { I18nService } from '../../services/i18n.service';
       <button type="button" class="primary" [disabled]="loading" (click)="scan.emit()" aria-label="Run WCAG 2.1 AA scan across active document">
         {{ loading ? '...' : i18n.t('rescanBtn') }}
       </button>
+      <button *ngIf="fixableCount > 0" type="button" class="fix-all-btn" [disabled]="loading" (click)="fixAll.emit()" aria-label="Auto-remediate all fixable accessibility issues">
+        ⚡ {{ i18n.t('fixAllBtn') || 'Fix All' }} ({{ fixableCount }})
+      </button>
       <button *ngIf="hostType === 'SLIDES'" type="button" [disabled]="loading" (click)="openReadingOrder.emit()" aria-label="Open Slides object reading order editor modal">
         {{ i18n.t('readingOrderModalBtn') }}
       </button>
@@ -174,6 +177,16 @@ import { I18nService } from '../../services/i18n.service';
     .actions-strip button {
       flex: 1;
     }
+    .actions-strip button.fix-all-btn {
+      background: #188038;
+      border: 1px solid #188038;
+      color: #ffffff;
+      font-weight: 700;
+    }
+    .actions-strip button.fix-all-btn:hover:not(:disabled) {
+      background: #137333;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
   `]
 })
 export class DashboardComponent {
@@ -185,8 +198,13 @@ export class DashboardComponent {
   @Output() scan = new EventEmitter<void>();
   @Output() openReadingOrder = new EventEmitter<void>();
   @Output() filterSelect = new EventEmitter<string>();
+  @Output() fixAll = new EventEmitter<void>();
 
   constructor(public i18n: I18nService) {}
+
+  get fixableCount(): number {
+    return this.issues.filter(i => i.canAutoFix).length;
+  }
 
   get errors(): number {
     return this.issues.filter(i => i.severity === 'ERROR').length;

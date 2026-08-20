@@ -1,0 +1,13 @@
+{
+  "name": "a11ychecker-vertex-cloud-function",
+  "version": "1.0.0",
+  "description": "Google Cloud Function microservice for Vertex AI Multimodal Alt Text and Link Title generation",
+  "main": "index.js",
+  "scripts": {
+    "start": "functions-framework --target=generateAiSuggestions"
+  },
+  "dependencies": {
+    "@google-cloud/vertexai": "^1.9.0",
+    "@google-cloud/functions-framework": "^3.3.0"
+  }
+}

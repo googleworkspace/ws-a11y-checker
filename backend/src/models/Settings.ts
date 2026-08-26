@@ -22,10 +22,6 @@ export interface AddonSettings {
   contrastFixMode: 'PRESERVE_HSL' | 'SNAP_MATERIAL';
   /** Whether to automatically execute safe 1-click fixes during scans (disabled by default) */
   enableAutoRemediation: boolean;
-  /** Optional Gemini API Key for live multimodal AI Alt Text and Link rewriting */
-  geminiApiKey?: string;
-  /** Optional Gemini Model name (defaults to gemini-1.5-flash) */
-  aiModel?: string;
   /** Language preference */
   language?: string;
   /** Detected Workspace user locale */
@@ -35,7 +31,5 @@ export interface AddonSettings {
 export const DEFAULT_SETTINGS: AddonSettings = {
   contrastFixMode: 'PRESERVE_HSL',
   enableAutoRemediation: false,
-  geminiApiKey: '',
-  aiModel: 'gemini-3.5-flash-lite',
   language: 'AUTO',
 };

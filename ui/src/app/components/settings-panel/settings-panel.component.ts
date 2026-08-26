@@ -47,18 +47,6 @@ import { I18nService } from '../../services/i18n.service';
             </select>
           </div>
 
-          <!-- Gemini AI Settings -->
-          <div class="setting-group">
-            <label class="setting-title" id="ai-label">{{ i18n.t('aiSettingsTitle') }}</label>
-            <p class="setting-desc">{{ i18n.t('aiSettingsDesc') }}</p>
-            <input type="password" class="google-input" [(ngModel)]="localSettings.geminiApiKey" placeholder="AIzaSy... (Optional)" />
-            <select class="google-select" [(ngModel)]="localSettings.aiModel" style="margin-top: 6px;">
-              <option value="gemini-1.5-flash">Gemini 1.5 Flash (Fast & Lightweight)</option>
-              <option value="gemini-2.5-flash">Gemini 2.5 Flash (Latest)</option>
-              <option value="gemini-1.5-pro">Gemini 1.5 Pro (High Reasoning)</option>
-            </select>
-          </div>
-
           <div class="setting-group">
             <label class="setting-title" id="contrast-mode-label">{{ i18n.t('contrastModeLabel') }}</label>
             <p class="setting-desc">{{ i18n.t('contrastModeDesc') }}</p>
@@ -133,7 +121,7 @@ import { I18nService } from '../../services/i18n.service';
   `]
 })
 export class SettingsPanelComponent {
-  @Input() settings: Settings = { contrastFixMode: 'PRESERVE_HSL', enableAutoRemediation: false, geminiApiKey: '', aiModel: 'gemini-1.5-flash', language: 'AUTO' };
+  @Input() settings: Settings = { contrastFixMode: 'PRESERVE_HSL', enableAutoRemediation: false, language: 'AUTO' };
   @Output() close = new EventEmitter<void>();
   @Output() save = new EventEmitter<Settings>();
 

@@ -8,13 +8,17 @@
     "build:backend": "node scripts/build-backend.js",
     "build:ui": "cd ui && npm run build",
     "bundle": "node scripts/build-bundle.js",
+    "test": "jest",
     "build": "npm run build:backend && npm run build:ui && npm run bundle",
     "push": "npm run build && clasp push"
   },
   "devDependencies": {
     "@google/clasp": "^2.4.2",
     "@types/google-apps-script": "^1.0.83",
+    "@types/jest": "^30.0.0",
     "esbuild": "^0.28.1",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.12",
     "typescript": "^5.4.5"
   }
 }

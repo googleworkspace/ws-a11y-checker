@@ -33,7 +33,7 @@ exports.generateAiSuggestions = async (req, res) => {
     return res.status(455).json({ error: 'Only POST requests are supported.' });
   }
 
-  const project = process.env.GCP_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'a11ychecker-501212';
+  const project = process.env.GCP_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'your-gcp-project-id';
   const location = process.env.GCP_LOCATION || 'us-central1';
 
   try {

@@ -36,8 +36,6 @@ import { I18nService } from './i18n.service';
 export interface Settings {
   contrastFixMode: 'PRESERVE_HSL' | 'SNAP_MATERIAL';
   enableAutoRemediation: boolean;
-  geminiApiKey?: string;
-  aiModel?: string;
   language?: string;
   userLocale?: string;
 }
@@ -59,8 +57,6 @@ export class AccessibilityService {
   private settingsSubject = new BehaviorSubject<Settings>({
     contrastFixMode: 'PRESERVE_HSL',
     enableAutoRemediation: false,
-    geminiApiKey: '',
-    aiModel: 'gemini-1.5-flash',
     language: 'AUTO',
   });
   readonly settings$ = this.settingsSubject.asObservable();

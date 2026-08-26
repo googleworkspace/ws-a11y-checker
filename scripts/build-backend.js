@@ -49,6 +49,7 @@ function onOpen(e) { return _app.onOpen(e); }
 function showSidebar() { return _app.showSidebar(); }
 function populateTestCases(id) { return _app.populateTestCases(id); }
 function buildGmailComposeCard(e) { return _app.buildGmailComposeCard(e); }
+function refreshGmailComposeCard(e) { return _app.refreshGmailComposeCard(e); }
 function buildGmailHomepageCard(e) { return _app.buildGmailHomepageCard(e); }
 function refreshGmailHomepageCard(e) { return _app.refreshGmailHomepageCard(e); }
 function buildGmailMessageCard(e) { return _app.buildGmailMessageCard(e); }
@@ -67,8 +68,8 @@ function rpcGenerateAiAltText(id, alt) { return _app.rpcGenerateAiAltText(id, al
 function rpcGenerateAiLinkTitle(anchor, ctx, url) { return _app.rpcGenerateAiLinkTitle(anchor, ctx, url); }
 function rpcPopulateGmailDemo(e) { return _app.rpcPopulateGmailDemo(e); }
 function rpcScanLatestDraft(e) { return _app.rpcScanLatestDraft(e); }
-function setupGcpProjectId(id) { return _app.setupGcpProjectId(id); }
-function forceReauthorizeScopes() { return _app.forceReauthorizeScopes(); }
+function rpcInspectDraftHtml(e) { return _app.rpcInspectDraftHtml(e); }
+function rpcDumpDraftLogs(e) { return _app.rpcDumpDraftLogs(e); }
 `;
 
 const codePath = path.join(distDir, 'Code.js');

@@ -20,7 +20,7 @@
 import { runAllChecks } from './checks/CheckRunner';
 import { SIMULATED_LIST_REGEX } from './checks/HeadingCheck';
 import { applySlideReadingOrder, getSlideElementsAST, SlideElementAST } from './checks/ElementOrderCheck';
-import { buildGmailComposeCard, buildGmailHomepageCard, refreshGmailHomepageCard, buildGmailMessageCard, rpcApplyGmailFix, rpcApplyAllGmailFixes, rpcPopulateGmailDemo, rpcScanLatestDraft, forceReauthorizeScopes } from './hosts/GmailHost';
+import { buildGmailComposeCard, buildGmailHomepageCard, refreshGmailComposeCard, refreshGmailHomepageCard, buildGmailMessageCard, rpcApplyGmailFix, rpcApplyAllGmailFixes, rpcPopulateGmailDemo, rpcScanLatestDraft, rpcInspectDraftHtml, rpcDumpDraftLogs } from './hosts/GmailHost';
 import { AccessibilityIssue } from './models/Issue';
 import { AddonSettings, DEFAULT_SETTINGS } from './models/Settings';
 import { rpcGetImageBlob, generateAiAltText, generateAiLinkTitle } from './utils/AiUtil';
@@ -624,8 +624,6 @@ function rpcSaveSettings(settings: AddonSettings): void {
     const props: Record<string, string> = {
       contrastFixMode: settings.contrastFixMode || 'PRESERVE_HSL',
       enableAutoRemediation: settings.enableAutoRemediation ? 'true' : 'false',
-      geminiApiKey: settings.geminiApiKey || '',
-      aiModel: settings.aiModel || 'gemini-1.5-flash',
       language: settings.language || 'AUTO'
     };
     PropertiesService.getUserProperties().setProperties(props);
@@ -634,27 +632,13 @@ function rpcSaveSettings(settings: AddonSettings): void {
   }
 }
 
-/**
- * Admin Setup Function: Invoked via Apps Script Editor or CLI to push the GCP Project ID as a Script Property.
- * This ensures end-users cannot view or alter the project ID.
- */
-function setupGcpProjectId(projectId: string): string {
-  if (!projectId || typeof projectId !== 'string' || !projectId.trim()) {
-    throw new Error('Please specify a valid GCP Project ID. Usage: setupGcpProjectId("your-gcp-project-id")');
-  }
-  const targetId = projectId.trim();
-  PropertiesService.getScriptProperties().setProperty('gcpProjectId', targetId);
-  const msg = `Successfully set Script Property "gcpProjectId" to "${targetId}".`;
-  console.log(msg);
-  return msg;
-}
-
 export {
   onOpen,
   showSidebar,
   populateTestCases,
   buildGmailComposeCard,
   buildGmailHomepageCard,
+  refreshGmailComposeCard,
   refreshGmailHomepageCard,
   buildGmailMessageCard,
   rpcApplyGmailFix,
@@ -672,7 +656,7 @@ export {
   rpcGenerateAiLinkTitle,
   rpcPopulateGmailDemo,
   rpcScanLatestDraft,
-  setupGcpProjectId,
-  forceReauthorizeScopes,
+  rpcInspectDraftHtml,
+  rpcDumpDraftLogs,
 };
 

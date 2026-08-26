@@ -61,5 +61,20 @@ export interface AccessibilityIssue {
     suggestedHex?: string;
     contrastRatio?: number;
     suggestedHeadingLevel?: string;
+    suggestedCleanAlt?: string;
+    isImage?: boolean;
+    currentAlt?: string;
+    [key: string]: any;
   };
+  /** Host-specific quick fix properties */
+  oldText?: string;
+  newText?: string;
+  imgIdx?: number;
+  url?: string;
+  rawAnchor?: string;
+  suggestedText?: string;
+  currentAlt?: string;
+  suggestedAlt?: string;
+  [key: string]: any;
 }
+

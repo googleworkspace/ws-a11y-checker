@@ -76,34 +76,36 @@ import { LiteRtService } from '../../services/litert.service';
           </div>
         </div>
 
-        <!-- AI Alt Text Generator Box -->
-        <div *ngIf="issue.issueType === 'Alternative Text'" class="litert-box">
-          <div class="litert-header">
-            <span class="litert-badge">✨ AI Accessibility Evaluator (Gemini & LiteRT Vision)</span>
-            <button type="button" class="litert-gen-btn" [disabled]="loadingAi[issue.elementId]" (click)="generateAiAltText(issue)">
-              {{ loadingAi[issue.elementId] ? 'Evaluating Image...' : (altTextSuggestions[issue.elementId] ? 'Re-evaluate with AI' : 'Evaluate Image & Suggest Alt Text (AI)') }}
+        <!-- Manual Alt Text Input Box -->
+        <div *ngIf="issue.issueType === 'Alternative Text'" class="manual-fix-box">
+          <div class="manual-fix-header">
+            <span class="manual-fix-label">Alternative Text (WCAG 1.1.1):</span>
+            <button type="button" class="decorative-btn" [class.active]="isDecorative(issue.elementId)" (click)="setDecorative(issue)">
+              🎨 {{ isDecorative(issue.elementId) ? 'Decorative (alt="")' : 'Mark as Decorative (alt="")' }}
             </button>
           </div>
-
-          <div *ngIf="altTextSuggestions[issue.elementId] !== undefined" class="litert-suggestion">
-            <label class="litert-label">Suggested Alt Text Description:</label>
-            <input type="text" class="litert-input" [(ngModel)]="altTextSuggestions[issue.elementId]" placeholder="Describe the image context..." />
-          </div>
+          <input
+            type="text"
+            class="manual-input"
+            [(ngModel)]="altTextSuggestions[issue.elementId]"
+            placeholder="Type descriptive alternative text (or leave empty for decorative)..."
+          />
         </div>
 
-        <!-- AI Link Title Generator Box -->
-        <div *ngIf="issue.issueType === 'Meaningful Hyperlinks'" class="litert-box">
-          <div class="litert-header">
-            <span class="litert-badge">✨ AI Accessibility Evaluator (Gemini & LiteRT NLP)</span>
-            <button type="button" class="litert-gen-btn" [disabled]="loadingAi[issue.elementId]" (click)="generateAiLinkTitle(issue)">
-              {{ loadingAi[issue.elementId] ? 'Rewriting Link...' : (linkTitleSuggestions[issue.elementId] ? 'Re-generate with AI' : 'Rewrite Link with AI') }}
+        <!-- Manual Link Title Input Box -->
+        <div *ngIf="issue.issueType === 'Meaningful Hyperlinks'" class="manual-fix-box">
+          <div class="manual-fix-header">
+            <span class="manual-fix-label">Replacement Link Text:</span>
+            <button *ngIf="linkTitleSuggestions[issue.elementId] === undefined" type="button" class="decorative-btn" (click)="suggestLinkTitle(issue)">
+              Suggest Text
             </button>
           </div>
-
-          <div *ngIf="linkTitleSuggestions[issue.elementId] !== undefined" class="litert-suggestion">
-            <label class="litert-label">Suggested Link Replacement Title:</label>
-            <input type="text" class="litert-input" [(ngModel)]="linkTitleSuggestions[issue.elementId]" placeholder="Descriptive replacement link title..." />
-          </div>
+          <input
+            type="text"
+            class="manual-input"
+            [(ngModel)]="linkTitleSuggestions[issue.elementId]"
+            placeholder="Descriptive replacement link title..."
+          />
         </div>
 
         <div class="card-actions">
@@ -162,7 +164,7 @@ import { LiteRtService } from '../../services/litert.service';
     .swatch-label { display: block; font-size: 10px; color: #5f6368; }
     .swatch strong { font-size: 13px; font-weight: 700; }
 
-    .litert-box {
+    .manual-fix-box {
       background: #f8fafd;
       border: 1px solid #d2e3fc;
       border-radius: 6px;
@@ -170,24 +172,23 @@ import { LiteRtService } from '../../services/litert.service';
       margin-bottom: 12px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
     }
-    .litert-header { display: flex; justify-content: space-between; align-items: center; }
-    .litert-badge { font-size: 11px; font-weight: 500; color: #1a73e8; }
-    button.litert-gen-btn {
-      height: 26px;
-      padding: 0 10px;
+    .manual-fix-header { display: flex; justify-content: space-between; align-items: center; }
+    .manual-fix-label { font-size: 11px; font-weight: 500; color: #1a73e8; }
+    button.decorative-btn {
+      height: 24px;
+      padding: 0 8px;
       font-size: 11px;
-      border-radius: 13px;
-      background: #e8f0fe;
-      border: 1px solid #1a73e8;
-      color: #1a73e8;
+      border-radius: 12px;
+      background: #ffffff;
+      border: 1px solid #dadce0;
+      color: #3c4043;
+      cursor: pointer;
     }
-    button.litert-gen-btn:hover:not(:disabled) { background: #d2e3fc; }
-    button.litert-gen-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-    .litert-suggestion { display: flex; flex-direction: column; gap: 4px; }
-    .litert-label { font-size: 10px; font-weight: 500; color: #5f6368; }
-    .litert-input {
+    button.decorative-btn:hover { background: #f1f3f4; }
+    button.decorative-btn.active { background: #e6f4ea; border-color: #188038; color: #137333; font-weight: 600; }
+    .manual-input {
       padding: 6px 10px;
       border: 1px solid #dadce0;
       border-radius: 4px;
@@ -195,6 +196,7 @@ import { LiteRtService } from '../../services/litert.service';
       color: #202124;
       background: #ffffff;
       width: 100%;
+      box-sizing: border-box;
     }
 
     .card-actions { display: flex; gap: 8px; justify-content: flex-end; }
@@ -210,7 +212,6 @@ export class IssueListComponent {
 
   altTextSuggestions: Record<string, string> = {};
   linkTitleSuggestions: Record<string, string> = {};
-  loadingAi: Record<string, boolean> = {};
 
   constructor(public i18n: I18nService, private liteRt: LiteRtService) {}
 
@@ -222,54 +223,34 @@ export class IssueListComponent {
     this.fixAll.emit({ altMap: this.altTextSuggestions, linkMap: this.linkTitleSuggestions });
   }
 
-  async generateAiAltText(issue: Issue): Promise<void> {
-    this.loadingAi[issue.elementId] = true;
-    try {
-      const currentAlt = issue.fixMetadata?.currentAlt || '';
-      const caption = await this.liteRt.generateAltTextForElement(issue.elementId, currentAlt);
-      this.altTextSuggestions[issue.elementId] = caption;
-    } finally {
-      this.loadingAi[issue.elementId] = false;
-    }
+  setDecorative(issue: Issue): void {
+    this.altTextSuggestions[issue.elementId] = '';
   }
 
-  async generateAiLinkTitle(issue: Issue): Promise<void> {
-    this.loadingAi[issue.elementId] = true;
-    try {
-      const currentAnchor = issue.fixMetadata?.currentAnchor || issue.snippet || '';
-      const url = issue.fixMetadata?.url || '';
-      const title = await this.liteRt.suggestLinkAnchor(currentAnchor, issue.description, url);
-      this.linkTitleSuggestions[issue.elementId] = title;
-    } finally {
-      this.loadingAi[issue.elementId] = false;
-    }
+  isDecorative(elementId: string): boolean {
+    return this.altTextSuggestions[elementId] === '';
+  }
+
+  async suggestLinkTitle(issue: Issue): Promise<void> {
+    const currentAnchor = issue.fixMetadata?.currentAnchor || issue.snippet || '';
+    const url = issue.fixMetadata?.url || '';
+    const title = await this.liteRt.suggestLinkAnchor(currentAnchor, issue.description, url);
+    this.linkTitleSuggestions[issue.elementId] = title;
   }
 
   async onApplyFix(issue: Issue): Promise<void> {
     if (issue.issueType === 'Alternative Text') {
-      let suggested = this.altTextSuggestions[issue.elementId] || issue.fixMetadata?.suggestedCleanAlt;
-      if (!suggested) {
-        this.loadingAi[issue.elementId] = true;
-        try {
-          suggested = await this.liteRt.generateAltTextForElement(issue.elementId, issue.fixMetadata?.currentAlt);
-          this.altTextSuggestions[issue.elementId] = suggested;
-        } finally {
-          this.loadingAi[issue.elementId] = false;
-        }
-      }
+      const suggested = this.altTextSuggestions[issue.elementId] !== undefined
+        ? this.altTextSuggestions[issue.elementId]
+        : (issue.fixMetadata?.suggestedCleanAlt ?? '');
       this.fix.emit({ issue, value: suggested });
     } else if (issue.issueType === 'Meaningful Hyperlinks') {
       let suggestedLink = this.linkTitleSuggestions[issue.elementId];
-      if (!suggestedLink) {
-        this.loadingAi[issue.elementId] = true;
-        try {
-          const currentAnchor = issue.fixMetadata?.currentAnchor || issue.snippet || '';
-          const url = issue.fixMetadata?.url || '';
-          suggestedLink = await this.liteRt.suggestLinkAnchor(currentAnchor, issue.description, url);
-          this.linkTitleSuggestions[issue.elementId] = suggestedLink;
-        } finally {
-          this.loadingAi[issue.elementId] = false;
-        }
+      if (suggestedLink === undefined) {
+        const currentAnchor = issue.fixMetadata?.currentAnchor || issue.snippet || '';
+        const url = issue.fixMetadata?.url || '';
+        suggestedLink = await this.liteRt.suggestLinkAnchor(currentAnchor, issue.description, url);
+        this.linkTitleSuggestions[issue.elementId] = suggestedLink;
       }
       this.fix.emit({ issue, value: suggestedLink });
     } else {

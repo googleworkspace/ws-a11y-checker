@@ -63,7 +63,7 @@ a11ychecker/
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Getting Started & Local Development
 
 ### Prerequisites
 
@@ -75,7 +75,7 @@ a11ychecker/
 
 1. **Clone the repository**:
    ```bash
-   git clone sso://ospo-internal/releasing/ws-a11y-checker/ws-a11y-checker
+   git clone https://github.com/googleworkspace/ws-a11y-checker.git
    cd ws-a11y-checker
    ```
 
@@ -84,15 +84,32 @@ a11ychecker/
    npm install
    ```
 
-3. **Build backend and frontend**:
+3. **Run Unit Test Suite**:
+   ```bash
+   npm test
+   ```
+
+4. **Build backend and frontend**:
    ```bash
    npm run build
    ```
 
-4. **Deploy to Google Apps Script**:
+5. **Deploy to Google Apps Script**:
    ```bash
    npm run push
    ```
+
+---
+
+## 🏛️ Institutional Launch & Deployment (Domain-Wide)
+
+For schools, universities, and enterprise institutions wishing to launch the **Accessibility Checker** for all domain users as a private Google Workspace Add-on:
+
+1. **Self-Contained & Private**: The add-on runs entirely within your institution's Google Apps Script and Google Cloud Platform (GCP) project without external third-party data processing.
+2. **Step-by-Step Administrator Guide**: Follow our comprehensive [Institutional Deployment Guide (DEPLOYMENT.md)](DEPLOYMENT.md) for full instructions on:
+   - Creating and linking the GCP Project & OAuth Consent Screen (**Internal** user type).
+   - Configuring the Google Workspace Marketplace SDK with private domain visibility.
+   - Force-installing or allowing self-service installation across the entire domain or specific Organizational Units (OUs) via the **Google Workspace Admin Console** (`admin.google.com`).
 
 ---
 
@@ -108,3 +125,4 @@ The extension supports multi-language display across all UI components and repor
 ## 📜 License
 
 Licensed under the [Apache License, Version 2.0](LICENSE).
+

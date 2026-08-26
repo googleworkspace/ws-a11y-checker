@@ -21,6 +21,46 @@ import { AccessibilityIssue } from '../models/Issue';
 
 export const SIMULATED_LIST_REGEX = /^(\s*([*•▪▫►❖➢·⁃\u2013\u2014]|[-+](?=\s)|(o|O)(?=\s)|\d+[\.\)]|[a-zA-Z][\.\)]|\([0-9a-zA-Z]\))(\s*))/;
 
+export interface HeadingItem {
+  elementId: string;
+  level: number;
+  text: string;
+}
+
+/**
+ * Checks sequential heading levels for skipped ranks (e.g. H1 followed immediately by H3).
+ */
+export function checkHeadingHierarchy(headings: HeadingItem[]): AccessibilityIssue[] {
+  const issues: AccessibilityIssue[] = [];
+  let previousLevel = 0;
+
+  for (const h of headings) {
+    const text = (h.text || '').trim();
+    if (!text) continue;
+    const currentLevel = h.level;
+    if (currentLevel > 0) {
+      if (previousLevel > 0 && currentLevel > previousLevel + 1) {
+        const targetLevel = previousLevel + 1;
+        issues.push({
+          elementId: h.elementId,
+          elementType: 'Paragraph',
+          issueType: 'Heading Structure',
+          severity: 'WARNING',
+          wcagRule: 'WCAG 1.3.1 Info and Relationships',
+          title: `Skipped heading level (H${previousLevel} directly followed by H${currentLevel})`,
+          description: `Skipping heading ranks confuses screen reader navigation. Use H${targetLevel} instead.`,
+          snippet: text.substring(0, 50),
+          canAutoFix: true,
+          fixMetadata: { suggestedHeadingLevel: `HEADING${targetLevel}` },
+        });
+      }
+      previousLevel = currentLevel;
+    }
+  }
+
+  return issues;
+}
+
 /**
  * Scans document paragraphs for heading structure issues, faux headings, and manual bullet lists,
  * ensuring logical cascading starting from Heading 1.

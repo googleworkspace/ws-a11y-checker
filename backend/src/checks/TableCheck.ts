@@ -20,9 +20,43 @@
 import { AccessibilityIssue } from '../models/Issue';
 
 /**
- * Scans document tables to ensure header rows are structurally and visually distinguished.
+ * Scans document tables or table properties to ensure header rows are structurally and visually distinguished.
  */
-export function checkTableHeaders(tables: GoogleAppsScript.Document.Table[]): AccessibilityIssue[] {
+export function checkTableHeaders(tables: GoogleAppsScript.Document.Table[]): AccessibilityIssue[];
+export function checkTableHeaders(
+  elementId: string,
+  elementType: string,
+  hasHeaderRow: boolean,
+  hasHeaderCol: boolean,
+  numRows: number,
+  numCols: number
+): AccessibilityIssue | null;
+export function checkTableHeaders(
+  tablesOrId: GoogleAppsScript.Document.Table[] | string,
+  elementType?: string,
+  hasHeaderRow?: boolean,
+  hasHeaderCol?: boolean,
+  numRows?: number,
+  _numCols?: number
+): AccessibilityIssue[] | AccessibilityIssue | null {
+  if (typeof tablesOrId === 'string') {
+    if (!hasHeaderRow && !hasHeaderCol && (numRows || 0) > 1) {
+      return {
+        elementId: tablesOrId,
+        elementType: elementType || 'Table',
+        issueType: 'Table Structure',
+        severity: 'ERROR',
+        wcagRule: 'WCAG 1.3.1 Info and Relationships',
+        title: 'Table missing header row/column',
+        description: 'Data tables must distinguish column header cells from data cells so users and assistive tech recognize structure.',
+        snippet: `${elementType || 'Table'} [ID: ${tablesOrId}]`,
+        canAutoFix: false,
+      };
+    }
+    return null;
+  }
+
+  const tables = tablesOrId as GoogleAppsScript.Document.Table[];
   const issues: AccessibilityIssue[] = [];
 
   for (let i = 0; i < tables.length; i++) {
@@ -61,3 +95,4 @@ export function checkTableHeaders(tables: GoogleAppsScript.Document.Table[]): Ac
 
   return issues;
 }
+

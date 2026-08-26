@@ -1,6 +1,6 @@
 # Google Workspace Accessibility Checker: Institutional Deployment Guide
 
-This guide provides step-by-step instructions for IT administrators, educational institutions, and enterprises to clone, build, and deploy the **Accessibility Checker** as an internal **Google Workspace Add-on** for all domain users across Google Docs, Google Slides, Google Sheets, and Gmail.
+This guide provides step-by-step instructions for IT administrators, educational institutions, and enterprises to clone, build, and deploy the **Accessibility Checker** as an internal **Google Workspace Add-on** for all domain users across **Google Docs**, **Google Slides**, **Google Sheets**, **Google Forms**, and **Gmail**.
 
 ---
 
@@ -213,10 +213,10 @@ Once published privately to your domain, you can distribute the add-on to all us
 
 Have a test user verify the add-on across each host application:
 
-1. **Google Docs & Google Slides**:
-   - Open any Google Doc or Google Slide deck.
+1. **Google Docs, Google Slides, Google Sheets, & Google Forms**:
+   - Open any Google Doc, Slide deck, Spreadsheet, or Form.
    - Click **Extensions** → **Accessibility Checker** → **Open Accessibility Checker** (or click the Accessibility Checker icon in the right-hand companion sidebar).
-   - Verify the audit dashboard loads and issues can be scanned and repaired.
+   - Verify the audit dashboard loads and issues can be scanned and repaired across document canvas, slides, sheet cells, and form fields.
 2. **Gmail (Compose & Message Views)**:
    - Open Gmail.
    - Click **Compose** to draft a new email.

@@ -1,24 +1,25 @@
 # Google Workspace Accessibility Checker Add-on
 
-A Google Workspace Add-on for **Google Docs** and **Google Slides** that scans documents and presentations for accessibility barriers, verifying alignment with **WCAG 2.1 Level AA** standards and providing 1-click automated remediations.
+A multi-host Google Workspace Add-on for **Google Docs**, **Google Slides**, **Google Sheets**, **Google Forms**, and **Gmail** that scans documents, presentations, spreadsheets, forms, and email drafts for accessibility barriers, verifying alignment with **WCAG 2.1 Level AA** standards and providing 1-click automated remediations.
 
 ---
 
 ## 🌟 Key Features
 
+- **Multi-Editor Google Workspace Integration**: Seamlessly audits **Google Docs**, **Google Slides**, **Google Sheets**, **Google Forms**, and **Gmail** (including active compose windows and message views).
 - **Comprehensive WCAG 2.1 AA Audit Engine**: Scans text contrast, heading hierarchies, ambiguous links, image alt text, table header styling, typography, line spacing, empty paragraph spacers, and slide z-index reading order.
-- **1-Click Auto-Remediation**: Instantly repairs accessibility issues directly on your document canvas (e.g. converting simulated headings to semantic $H_1/H_2$, adjusting low-contrast text colors, fixing justified text alignment, styling data table headers).
-- **Material Design 3 Sidebar UI**: Built with Angular 18 (Zoneless Change Detection) featuring authentic Google Workspace styling, Google Sans typography, and responsive surface cards.
+- **1-Click Auto-Remediation**: Instantly repairs accessibility issues directly on your canvas or email draft (e.g. converting simulated headings to semantic $H_1/H_2$, adjusting low-contrast text colors, fixing justified text alignment, styling data table headers, setting alt text).
+- **Material Design 3 Sidebar & Card UI**: Built with Angular 18 (Zoneless Change Detection) and Google Workspace CardService featuring authentic styling, Google Sans typography, and responsive surface cards.
 - **Interactive Severity Filtering**: Clickable stat dashboards and Material filter chips allowing users to isolate findings by **Error**, **Warning**, or **Notice** severity tiers.
 - **Multi-Language Internationalization (`i18n`)**: Auto-detects the user's active Google Workspace locale with built-in translations for **English (`en`)**, **Spanish (`es`)**, **French (`fr`)**, **German (`de`)**, and **Japanese (`ja`)**, plus manual language override in Preferences.
-- **Dynamic Test Suite Generator**: Generates comprehensive demo test suites directly inside Google Docs or Slides (appending non-destructively to preserve existing user content).
+- **Dynamic Test Suite Generator**: Generates comprehensive demo test suites directly inside Google Docs, Slides, Sheets, Forms, or Gmail drafts (appending non-destructively to preserve existing user content).
 
 ---
 
 ## 📋 Supported WCAG 2.1 AA Rules
 
 | WCAG Rule | Category | Description | Auto-Fix Available |
-| :--- | :--- | :--- | :---: |
+| :--- | :--- | :--- | :--- |
 | **WCAG 1.4.3** | Color Contrast (Minimum) | Ensures text maintains $\ge 4.5:1$ contrast ratio (or $\ge 3:1$ for large 18pt+ text) against background fills. | Yes |
 | **WCAG 1.3.1** | Info & Relationships (Headings) | Enforces logical heading hierarchies without rank skips ($H_1 \to H_2 \to H_3$) and flags top-of-doc faux headings. | Yes |
 | **WCAG 1.3.1** | Info & Relationships (Spacers) | Identifies consecutive empty paragraphs used as visual line breaks (which announce repeatedly as "blank" on screen readers). | Yes |
@@ -39,6 +40,7 @@ a11ychecker/
 ├── backend/                  # Google Apps Script Backend (TypeScript)
 │   ├── src/
 │   │   ├── checks/           # Modular WCAG check functions
+│   │   ├── hosts/            # Multi-host adapters (Gmail, Docs, Slides, Sheets, Forms)
 │   │   ├── models/           # Data models (Issue, Settings)
 │   │   ├── utils/            # Luminance & contrast math utilities
 │   │   └── Code.ts           # RPC entry points & test suite generator
@@ -53,13 +55,13 @@ a11ychecker/
 ├── scripts/
 │   ├── build-backend.js      # Bundles backend TS into dist/Code.js via esbuild
 │   └── build-bundle.js       # Bundles compiled Angular UI into single dist/sidebar.html
-├── appsscript.json           # Least-privilege manifest configuration
+├── appsscript.json           # Multi-host least-privilege manifest configuration
 └── package.json              # Root npm build & deploy pipeline
 ```
 
-- **Backend**: TypeScript compiled with `esbuild` into a single standalone IIFE (`dist/Code.js`) exposing global Google Apps Script RPC handlers.
+- **Backend**: TypeScript compiled with `esbuild` into a single standalone IIFE (`dist/Code.js`) exposing global Google Apps Script RPC handlers across Docs, Slides, Sheets, Forms, and Gmail.
 - **Frontend**: Angular 18 utilizing `provideExperimentalZonelessChangeDetection()` to prevent iframe microtask collisions inside Google Apps Script sandboxed iframes.
-- **Manifest**: Least-privilege OAuth scopes restricted strictly to `documents.currentonly`, `presentations.currentonly`, and `script.container.ui`.
+- **Manifest**: Least-privilege OAuth scopes configured specifically for Docs, Slides, Sheets, Forms, and Gmail.
 
 ---
 

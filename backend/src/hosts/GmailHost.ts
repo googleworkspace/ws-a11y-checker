@@ -1089,15 +1089,6 @@ export function buildGmailComposeCard(e: any, noticeMsg?: string, overrideHtml?:
       .setOnClickAction(demoAction)
   );
 
-  const inspectAction = CardService.newAction()
-    .setFunctionName('rpcInspectDraftHtml')
-    .setParameters({ source: 'COMPOSE' });
-  section.addWidget(
-    CardService.newTextButton()
-      .setText('🔍 Inspect Draft HTML & Blobs')
-      .setOnClickAction(inspectAction)
-  );
-
   if (noticeMsg && typeof noticeMsg === 'string') {
     section.addWidget(
       CardService.newTextParagraph().setText(`<font color="#0d652d"><b>${noticeMsg}</b></font>`)
@@ -1176,15 +1167,6 @@ export function buildGmailHomepageCard(e: any, noticeMsg?: string, overrideHtml?
     CardService.newTextButton()
       .setText('🧪 Create Demo Email Draft')
       .setOnClickAction(demoAction)
-  );
-
-  const inspectAction = CardService.newAction()
-    .setFunctionName('rpcInspectDraftHtml')
-    .setParameters({ source: 'HOMEPAGE' });
-  section.addWidget(
-    CardService.newTextButton()
-      .setText('🔍 Inspect Draft HTML & Blobs')
-      .setOnClickAction(inspectAction)
   );
 
   if (noticeMsg && typeof noticeMsg === 'string') {
@@ -1267,149 +1249,6 @@ export function buildGmailHomepageCard(e: any, noticeMsg?: string, overrideHtml?
   }
 
   return [builder.build()];
-}
-
-/**
- * Diagnostic card builder that allows the user to inspect the raw HTML of active drafts,
- * view all parsed MIME parts and image src attributes, and dump full logs for debugging.
- */
-export function rpcInspectDraftHtml(e: any): GoogleAppsScript.Card_Service.ActionResponse {
-  console.log('[rpcInspectDraftHtml] START. Triggered with event:', JSON.stringify(e?.parameters || {}));
-  const source = e?.parameters?.source || 'COMPOSE';
-  const { htmlBody, subject, draftId, msgId, inlineBlobs, mimeMap } = resolveDraftContent(e, true);
-
-  const builder = CardService.newCardBuilder();
-  builder.setHeader(CardService.newCardHeader().setTitle('🔍 Draft HTML & Diagnostic Inspector'));
-
-  const secOverview = CardService.newCardSection().setHeader('Draft Overview');
-  secOverview.addWidget(CardService.newKeyValue().setTopLabel('Subject').setContent(subject || '(Untitled)'));
-  secOverview.addWidget(CardService.newKeyValue().setTopLabel('Draft ID').setContent(draftId || '(none)'));
-  secOverview.addWidget(CardService.newKeyValue().setTopLabel('Message ID').setContent(msgId || '(none)'));
-  secOverview.addWidget(CardService.newKeyValue().setTopLabel('HTML Length').setContent(`${htmlBody ? htmlBody.length : 0} chars`));
-
-  // Extract all img tags
-  const imgMatches: Array<{ tag: string; src: string; alt: string }> = [];
-  const imgRegex = /<img\b([^>]*)>/gi;
-  let im: RegExpExecArray | null;
-  while ((im = imgRegex.exec(htmlBody)) !== null) {
-    const attrs = im[1];
-    const srcM = /src=["']?([^"'\s>]+)["']?/i.exec(attrs);
-    const altM = /alt=["']?([^"'\s>]+)["']?/i.exec(attrs);
-    imgMatches.push({
-      tag: im[0],
-      src: srcM ? srcM[1] : '(none)',
-      alt: altM ? altM[1] : '(none)',
-    });
-  }
-
-  const secImages = CardService.newCardSection().setHeader(`Detected Images (${imgMatches.length})`);
-  if (imgMatches.length === 0) {
-    secImages.addWidget(CardService.newTextParagraph().setText('<i>No &lt;img&gt; tags detected in HTML.</i>'));
-  } else {
-    imgMatches.forEach((item, idx) => {
-      secImages.addWidget(
-        CardService.newTextParagraph().setText(
-          `<b>Image #${idx + 1}:</b><br>` +
-          `• <b>src:</b> <code>${item.src.substring(0, 80)}${item.src.length > 80 ? '...' : ''}</code><br>` +
-          `• <b>alt:</b> "${item.alt}"`
-        )
-      );
-    });
-  }
-
-  const secBlobs = CardService.newCardSection().setHeader(`Attachments & MIME Parts (${inlineBlobs.length} Blobs, ${Object.keys(mimeMap).length} MIME)`);
-  if (inlineBlobs.length > 0) {
-    inlineBlobs.forEach((b, idx) => {
-      secBlobs.addWidget(
-        CardService.newTextParagraph().setText(
-          `• Blob #${idx + 1}: <b>${b.getName() || 'unnamed'}</b> (${b.getContentType()}, ${Math.round(b.getBytes().length / 1024)} KB)`
-        )
-      );
-    });
-  }
-  if (Object.keys(mimeMap).length > 0) {
-    Object.keys(mimeMap).filter(k => !k.startsWith('cid:')).forEach(k => {
-      const entry = mimeMap[k];
-      secBlobs.addWidget(
-        CardService.newTextParagraph().setText(
-          `• MIME CID: <b>${k}</b> (${entry.mimeType}, ~${Math.round(entry.dataUri.length * 0.75 / 1024)} KB)`
-        )
-      );
-    });
-  }
-  if (inlineBlobs.length === 0 && Object.keys(mimeMap).length === 0) {
-    secBlobs.addWidget(CardService.newTextParagraph().setText('<i>No attachment blobs or MIME parts found.</i>'));
-  }
-
-  const secHtml = CardService.newCardSection().setHeader('Raw Draft HTML Body');
-  if (!htmlBody) {
-    secHtml.addWidget(CardService.newTextParagraph().setText('<i>Draft body is empty.</i>'));
-  } else {
-    const escaped = htmlBody
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-    const preview = escaped.length > 1500 ? escaped.substring(0, 1500) + '\n\n... [TRUNCATED - click Dump to Logs for full HTML]' : escaped;
-    secHtml.addWidget(
-      CardService.newTextParagraph().setText(`<font color="#3c4043"><tt>${preview}</tt></font>`)
-    );
-  }
-
-  const secActions = CardService.newCardSection().setHeader('Diagnostic Actions');
-  const dumpAction = CardService.newAction()
-    .setFunctionName('rpcDumpDraftLogs')
-    .setParameters({ draftId: draftId || '', source: source });
-  secActions.addWidget(
-    CardService.newTextButton()
-      .setText('📋 Dump Full HTML & Blobs to Cloud Logs')
-      .setOnClickAction(dumpAction)
-      .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
-  );
-
-  const backAction = CardService.newAction()
-    .setFunctionName(source === 'HOMEPAGE' ? 'buildGmailHomepageCard' : 'buildGmailComposeCard');
-  secActions.addWidget(
-    CardService.newTextButton()
-      .setText('🔙 Back to Accessibility Audit')
-      .setOnClickAction(backAction)
-  );
-
-  builder.addSection(secOverview);
-  builder.addSection(secImages);
-  builder.addSection(secBlobs);
-  builder.addSection(secHtml);
-  builder.addSection(secActions);
-
-  return CardService.newActionResponseBuilder()
-    .setNavigation(CardService.newNavigation().pushCard(builder.build()))
-    .build();
-}
-
-/**
- * Action handler to dump the entire draft HTML, headers, and MIME parts into Apps Script execution logs.
- */
-export function rpcDumpDraftLogs(e: any): GoogleAppsScript.Card_Service.ActionResponse {
-  console.log('[rpcDumpDraftLogs] START. Triggered.');
-  const { htmlBody, subject, draftId, msgId, inlineBlobs, mimeMap } = resolveDraftContent(e, true);
-
-  console.log('================== [ACCESSIBILITY CHECKER DRAFT DIAGNOSTIC] ==================');
-  console.log('[METADATA]', JSON.stringify({ draftId, msgId, subject, bodyLength: htmlBody.length, blobCount: inlineBlobs.length, mimePartCount: Object.keys(mimeMap).length }));
-
-  console.log('--- [DRAFT HTML START] ---');
-  const chunkSize = 1000;
-  for (let i = 0; i < htmlBody.length; i += chunkSize) {
-    const chunk = htmlBody.substring(i, i + chunkSize);
-    console.log(`[DRAFT_HTML_CHUNK_${Math.floor(i / chunkSize) + 1} of ${Math.ceil(htmlBody.length / chunkSize)}] ${chunk}`);
-  }
-  console.log('--- [DRAFT HTML END] ---');
-
-  console.log('--- [MIME PARTS] ---', Object.keys(mimeMap));
-  console.log('--- [ATTACHMENTS] ---', inlineBlobs.map(b => ({ name: b.getName(), type: b.getContentType(), size: b.getBytes().length })));
-  console.log('==============================================================================');
-
-  return CardService.newActionResponseBuilder()
-    .setNotification(CardService.newNotification().setText(`✓ Logged ${htmlBody.length} chars of draft HTML to Cloud Console Execution Logs!`))
-    .build();
 }
 
 /**

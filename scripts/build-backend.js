@@ -68,8 +68,6 @@ function rpcGenerateAiAltText(id, alt) { return _app.rpcGenerateAiAltText(id, al
 function rpcGenerateAiLinkTitle(anchor, ctx, url) { return _app.rpcGenerateAiLinkTitle(anchor, ctx, url); }
 function rpcPopulateGmailDemo(e) { return _app.rpcPopulateGmailDemo(e); }
 function rpcScanLatestDraft(e) { return _app.rpcScanLatestDraft(e); }
-function rpcInspectDraftHtml(e) { return _app.rpcInspectDraftHtml(e); }
-function rpcDumpDraftLogs(e) { return _app.rpcDumpDraftLogs(e); }
 `;
 
 const codePath = path.join(distDir, 'Code.js');

@@ -20,7 +20,7 @@
 import { runAllChecks } from './checks/CheckRunner';
 import { SIMULATED_LIST_REGEX } from './checks/HeadingCheck';
 import { applySlideReadingOrder, getSlideElementsAST, SlideElementAST } from './checks/ElementOrderCheck';
-import { buildGmailComposeCard, buildGmailHomepageCard, refreshGmailComposeCard, refreshGmailHomepageCard, buildGmailMessageCard, rpcApplyGmailFix, rpcApplyAllGmailFixes, rpcPopulateGmailDemo, rpcScanLatestDraft, rpcInspectDraftHtml, rpcDumpDraftLogs } from './hosts/GmailHost';
+import { buildGmailComposeCard, buildGmailHomepageCard, refreshGmailComposeCard, refreshGmailHomepageCard, buildGmailMessageCard, rpcApplyGmailFix, rpcApplyAllGmailFixes, rpcPopulateGmailDemo, rpcScanLatestDraft } from './hosts/GmailHost';
 import { AccessibilityIssue } from './models/Issue';
 import { AddonSettings, DEFAULT_SETTINGS } from './models/Settings';
 import { rpcGetImageBlob, generateAiAltText, generateAiLinkTitle } from './utils/AiUtil';
@@ -656,7 +656,5 @@ export {
   rpcGenerateAiLinkTitle,
   rpcPopulateGmailDemo,
   rpcScanLatestDraft,
-  rpcInspectDraftHtml,
-  rpcDumpDraftLogs,
 };
 

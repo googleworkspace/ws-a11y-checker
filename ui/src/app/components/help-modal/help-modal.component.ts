@@ -23,11 +23,11 @@ import { I18nService } from '../../services/i18n.service';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="help-title">
+    <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="help-title" [attr.dir]="i18n.dir()">
       <div class="modal-card">
         <div class="modal-header">
-          <h2 id="help-title">{{ i18n.t('helpTitle') }}</h2>
-          <button type="button" class="close-btn" (click)="close.emit()" aria-label="Close help modal">✕</button>
+          <h2 id="help-title"><bdi>{{ i18n.t('helpTitle') }}</bdi></h2>
+          <button type="button" class="close-btn" (click)="close.emit()" [attr.aria-label]="i18n.t('closeHelpAriaLabel')">✕</button>
         </div>
 
         <div class="help-body">
@@ -39,21 +39,21 @@ import { I18nService } from '../../services/i18n.service';
           <section class="help-section">
             <h3>{{ i18n.t('severityTitle') }}</h3>
             <ul>
-              <li><strong>{{ i18n.t('errorDef') }}</strong></li>
-              <li><strong>{{ i18n.t('warningDef') }}</strong></li>
-              <li><strong>{{ i18n.t('noticeDef') }}</strong></li>
+              <li><strong><bdi>{{ i18n.t('errorDef') }}</bdi></strong></li>
+              <li><strong><bdi>{{ i18n.t('warningDef') }}</bdi></strong></li>
+              <li><strong><bdi>{{ i18n.t('noticeDef') }}</bdi></strong></li>
             </ul>
           </section>
 
           <section class="help-section">
             <h3>{{ i18n.t('rulesTitle') }}</h3>
             <ul>
-              <li><strong>WCAG 1.4.3 Contrast (Minimum):</strong> 4.5:1 ratio against background fills.</li>
-              <li><strong>WCAG 1.3.1 Info and Relationships:</strong> Clear cascading heading hierarchies (H1 -> H2 -> H3).</li>
-              <li><strong>WCAG 2.4.4 Link Purpose (In Context):</strong> Meaningful anchor text describing destinations.</li>
-              <li><strong>WCAG 1.1.1 Non-text Content:</strong> Descriptive alternative text for images and diagrams.</li>
-              <li><strong>WCAG 1.4.8 Visual Presentation:</strong> Left-aligned text without justified spacing rivers.</li>
-              <li><strong>WCAG 1.4.12 Text Spacing:</strong> Standard vertical paragraph line spacing (>= 1.15x).</li>
+              <li><bdi>{{ i18n.t('ruleContrast') }}</bdi></li>
+              <li><bdi>{{ i18n.t('ruleHeading') }}</bdi></li>
+              <li><bdi>{{ i18n.t('ruleLink') }}</bdi></li>
+              <li><bdi>{{ i18n.t('ruleAlt') }}</bdi></li>
+              <li><bdi>{{ i18n.t('ruleAlign') }}</bdi></li>
+              <li><bdi>{{ i18n.t('ruleSpacing') }}</bdi></li>
             </ul>
           </section>
 
@@ -71,22 +71,26 @@ import { I18nService } from '../../services/i18n.service';
   `,
   styles: [`
     .modal-backdrop {
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      position: fixed; inset: 0;
       background: rgba(32, 33, 36, 0.4); display: flex; align-items: center; justify-content: center; z-index: 1000;
     }
     .modal-card {
       background: #ffffff; border-radius: 8px; width: 90%; max-width: 460px; max-height: 85vh;
       display: flex; flex-direction: column; box-shadow: 0 8px 10px 1px rgba(0,0,0,0.14), 0 3px 14px 2px rgba(0,0,0,0.12);
     }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #e8eaed; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; padding-block: 16px; padding-inline: 20px; border-block-end: 1px solid #e8eaed; }
     .modal-header h2 { margin: 0; font-size: 16px; font-weight: 500; color: #202124; }
     .close-btn { border: none; background: none; font-size: 16px; color: #5f6368; }
     .help-body { padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
-    .help-section h3 { font-size: 13px; font-weight: 500; margin: 0 0 6px 0; color: #202124; }
+    .help-section h3 { font-size: 13px; font-weight: 500; margin: 0; margin-block-end: 6px; color: #202124; }
     .help-section p, .help-section ul { font-size: 12px; color: #5f6368; margin: 0; line-height: 1.5; }
-    .help-section ul { padding-left: 18px; }
-    .help-section li { margin-bottom: 6px; }
-    .modal-footer { display: flex; justify-content: flex-end; padding: 14px 20px; border-top: 1px solid #e8eaed; }
+    .help-section ul { padding-inline-start: 18px; padding-inline-end: 0; }
+    .help-section li { margin-block-end: 6px; }
+    .modal-footer { display: flex; justify-content: flex-end; padding-block: 14px; padding-inline: 20px; border-block-start: 1px solid #e8eaed; }
+
+    .help-section li, .help-section li bdi, .help-section li strong {
+      unicode-bidi: isolate;
+    }
   `]
 })
 export class HelpModalComponent {

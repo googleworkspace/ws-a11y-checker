@@ -14,302 +14,224 @@
  * limitations under the License.
  */
 
-import { Injectable } from '@angular/core';
-import { BehaviorSubject } from 'rxjs';
+import { Injectable, signal, computed, WritableSignal, Signal } from '@angular/core';
+import { BehaviorSubject, Observable } from 'rxjs';
+import {
+  DICTIONARIES,
+  SUPPORTED_LANGUAGES,
+  LanguageOption,
+  SupportedLanguage,
+  TranslationDictionary,
+} from './translations';
 
-export type SupportedLanguage = 'AUTO' | 'en' | 'es' | 'fr' | 'de' | 'ja';
+export * from './translations';
 
-const DICTIONARIES: Record<string, Record<string, string>> = {
-  en: {
-    appTitle: 'Accessibility Checker',
-    googleWorkspace: 'Google Workspace',
-    helpBtn: 'Help',
-    settingsBtn: 'Settings',
-    wcagScore: 'WCAG 2.1 AA Score',
-    errors: 'Errors',
-    warnings: 'Warnings',
-    notices: 'Notices',
-    all: 'All',
-    rescanBtn: 'Rescan Document',
-    scanning: 'Scanning active workspace file for WCAG 2.1 AA rules...',
-    readingOrderModalBtn: 'Reading Order Modal',
-    allClearTitle: 'All Clear!',
-    allClearDesc: 'No WCAG 2.1 AA accessibility violations detected.',
-    interactiveContrast: 'Interactive Contrast Preview',
-    currentLabel: 'Current',
-    suggestionLabel: 'Suggestion',
-    jumpBtn: 'Jump to Element',
-    applyFixBtn: 'Apply Fix',
-    fixAllBtn: 'Fix All',
-    readingOrderTitle: 'Slide Reading Order Editor',
-    readingOrderDesc: 'Arrange slide elements from top (read first by screen readers) to bottom (read last). WCAG 1.3.2: Use drag-and-drop or the keyboard Up/Down arrow buttons.',
-    applyOrderBtn: 'Apply Reading Order',
-    cancelBtn: 'Cancel',
-    loadingElements: 'Loading slide elements...',
-    preferencesTitle: 'Preferences',
-    contrastModeLabel: 'Color Contrast Remediation Mode',
-    contrastModeDesc: 'Choose how automated contrast adjustments calculate compliant colors.',
-    preserveHsl: 'Preserve HSL Hue (Recommended)',
-    preserveHslDesc: 'Darkens relative lightness while maintaining brand hue.',
-    snapMaterial: 'Snap to Google Material Palette',
-    snapMaterialDesc: 'Snaps color to nearest WCAG-compliant Google Grey/Blue shade.',
-    autoFixLabel: 'Enable Auto-Remediation on Scan',
-    autoFixDesc: 'Automatically applies 1-click fixes during scans (Off by default).',
-    languageLabel: 'Interface Language',
-    languageDesc: 'Choose your preferred display language for all accessibility tools and reports.',
-    langAuto: 'Auto (Google Workspace Preference)',
-    aiSettingsTitle: 'Gemini AI Integration',
-    aiSettingsDesc: 'Optional: Connect a Gemini API Key to enable live multimodal vision evaluation for images and NLP link rewriting.',
-    saveBtn: 'Save Preferences',
-    helpTitle: 'WCAG 2.1 AA Help & Guidance',
-    overviewTitle: 'Overview',
-    overviewDesc: 'This add-on scans your Google Docs and Slides for human-controllable accessibility barriers, verifying alignment with WCAG 2.1 AA standards.',
-    severityTitle: 'Severity Tiers Definitions',
-    errorDef: 'Error: Critical violation of mandatory WCAG 2.1 AA Success Criteria preventing essential content perception (-15 pts).',
-    warningDef: 'Warning: Serious structural practice creating major usability barriers (-5 pts).',
-    noticeDef: 'Notice: Advisory verification reminder or styling improvement (-2 pts).',
-    rulesTitle: 'Rules Being Checked',
-    remedyTitle: 'Remediation Features',
-    remedyDesc: 'Click Jump to Element to highlight text on your canvas. Use Apply Fix to instantly execute automated WCAG AA adjustments.',
-    gotItBtn: 'Got It'
-  },
-  es: {
-    appTitle: 'Verificador de Accesibilidad',
-    googleWorkspace: 'Google Workspace',
-    helpBtn: 'Ayuda',
-    settingsBtn: 'Ajustes',
-    wcagScore: 'Puntuación WCAG 2.1 AA',
-    errors: 'Errores',
-    warnings: 'Advertencias',
-    notices: 'Avisos',
-    all: 'Todos',
-    rescanBtn: 'Escanear Documento',
-    scanning: 'Escaneando archivo activo para reglas WCAG 2.1 AA...',
-    readingOrderModalBtn: 'Orden de Lectura (Diapositivas)',
-    allClearTitle: '¡Todo Correcto!',
-    allClearDesc: 'No se detectaron infracciones de accesibilidad WCAG 2.1 AA.',
-    interactiveContrast: 'Vista Previa de Contraste',
-    currentLabel: 'Actual',
-    suggestionLabel: 'Sugerencia',
-    jumpBtn: 'Ir al Elemento',
-    applyFixBtn: 'Aplicar Solución',
-    fixAllBtn: 'Corregir Todos',
-    readingOrderTitle: 'Editor de Orden de Lectura',
-    readingOrderDesc: 'Organice los elementos desde arriba (leídos primero por lectores de pantalla) hacia abajo (leídos al final). WCAG 1.3.2.',
-    applyOrderBtn: 'Guardar Orden',
-    cancelBtn: 'Cancelar',
-    loadingElements: 'Cargando elementos...',
-    preferencesTitle: 'Preferencias',
-    contrastModeLabel: 'Modo de Corrección de Contraste',
-    contrastModeDesc: 'Elige cómo los ajustes automáticos calculan colores accesibles.',
-    preserveHsl: 'Preservar Tono HSL (Recomendado)',
-    preserveHslDesc: 'Oscurece la luminosidad manteniendo el tono de la marca.',
-    snapMaterial: 'Paleta Google Material',
-    snapMaterialDesc: 'Ajusta al tono accesible más cercano de Google Grey/Blue.',
-    autoFixLabel: 'Corrección Automática al Escanear',
-    autoFixDesc: 'Aplica correcciones de un clic automáticamente al escanear.',
-    languageLabel: 'Idioma de la Interfaz',
-    languageDesc: 'Selecciona tu idioma preferido para todas las herramientas.',
-    langAuto: 'Automático (Preferencia de Google Workspace)',
-    aiSettingsTitle: 'Integración de Inteligencia Artificial (Gemini)',
-    aiSettingsDesc: 'Opcional: Conecta una clave API de Gemini para habilitar la evaluación visual y reescritura de enlaces en vivo.',
-    saveBtn: 'Guardar Preferencias',
-    helpTitle: 'Guía y Ayuda WCAG 2.1 AA',
-    overviewTitle: 'Descripción General',
-    overviewDesc: 'Este complemento escanea Google Docs y Slides en busca de barreras de accesibilidad bajo el estándar WCAG 2.1 AA.',
-    severityTitle: 'Definiciones de Gravedad',
-    errorDef: 'Error: Infracción crítica que impide percibir el contenido esencial (-15 pts).',
-    warningDef: 'Advertencia: Práctica estructural que genera barreras importantes (-5 pts).',
-    noticeDef: 'Aviso: Recordatorio o recomendación estilística (-2 pts).',
-    rulesTitle: 'Reglas Verificadas',
-    remedyTitle: 'Funciones de Remediación',
-    remedyDesc: 'Haz clic en Ir al Elemento para resaltar el texto en tu lienzo. Usa Aplicar Solución para correcciones instantáneas.',
-    gotItBtn: 'Entendido'
-  },
-  fr: {
-    appTitle: 'Vérificateur d\'Accessibilité',
-    googleWorkspace: 'Google Workspace',
-    helpBtn: 'Aide',
-    settingsBtn: 'Paramètres',
-    wcagScore: 'Score WCAG 2.1 AA',
-    errors: 'Erreurs',
-    warnings: 'Avertissements',
-    notices: 'Remarques',
-    all: 'Tout',
-    rescanBtn: 'Analyser le document',
-    scanning: 'Analyse du fichier actif selon les normes WCAG 2.1 AA...',
-    readingOrderModalBtn: 'Ordre de lecture',
-    allClearTitle: 'Aucun problème !',
-    allClearDesc: 'Aucune violation d\'accessibilité WCAG 2.1 AA détectée.',
-    interactiveContrast: 'Aperçu du Contraste',
-    currentLabel: 'Actuel',
-    suggestionLabel: 'Suggestion',
-    jumpBtn: 'Atteindre l\'élément',
-    applyFixBtn: 'Corriger automatiquement',
-    fixAllBtn: 'Tout corriger',
-    readingOrderTitle: 'Éditeur d\'ordre de lecture',
-    readingOrderDesc: 'Organisez les éléments de haut (lus en premier) en bas (lus en dernier). WCAG 1.3.2.',
-    applyOrderBtn: 'Appliquer l\'ordre',
-    cancelBtn: 'Annuler',
-    loadingElements: 'Chargement des éléments...',
-    preferencesTitle: 'Préférences',
-    contrastModeLabel: 'Mode de correction du contraste',
-    contrastModeDesc: 'Choisissez comment calculer les couleurs conformes.',
-    preserveHsl: 'Conserver la teinte HSL (Recommandé)',
-    preserveHslDesc: 'Assombrit la luminosité en conservant la couleur de marque.',
-    snapMaterial: 'Palette Google Material',
-    snapMaterialDesc: 'Ajuste vers la nuance accessible la plus proche.',
-    autoFixLabel: 'Correction automatique lors de l\'analyse',
-    autoFixDesc: 'Applique automatiquement les correctifs simples en un clic.',
-    languageLabel: 'Langue de l\'interface',
-    languageDesc: 'Choisissez votre langue d\'affichage préférée.',
-    langAuto: 'Automatique (Google Workspace)',
-    aiSettingsTitle: 'Intégration IA Gemini',
-    aiSettingsDesc: 'Optionnel : Connectez une clé API Gemini pour activer l\'évaluation visuelle multimodale et la réécriture des liens.',
-    saveBtn: 'Enregistrer les préférences',
-    helpTitle: 'Aide & Normes WCAG 2.1 AA',
-    overviewTitle: 'Aperçu',
-    overviewDesc: 'Cette extension analyse vos documents Google Docs et Slides pour garantir leur conformité WCAG 2.1 AA.',
-    severityTitle: 'Niveaux de gravité',
-    errorDef: 'Erreur : Violation critique empêchant l\'accès au contenu (-15 pts).',
-    warningDef: 'Avertissement : Problème structurel majeur (-5 pts).',
-    noticeDef: 'Remarque : Suggestion d\'amélioration ou rappel de vérification (-2 pts).',
-    rulesTitle: 'Règles vérifiées',
-    remedyTitle: 'Outils de correction',
-    remedyDesc: 'Utilisez Atteindre l\'élément pour localiser le problème et Corriger pour appliquer un correctif immédiat.',
-    gotItBtn: 'Compris'
-  },
-  de: {
-    appTitle: 'Barrierefreiheitsprüfung',
-    googleWorkspace: 'Google Workspace',
-    helpBtn: 'Hilfe',
-    settingsBtn: 'Einstellungen',
-    wcagScore: 'WCAG 2.1 AA Ergebnis',
-    errors: 'Fehler',
-    warnings: 'Warnungen',
-    notices: 'Hinweise',
-    all: 'Alle',
-    rescanBtn: 'Dokument prüfen',
-    scanning: 'Aktives Dokument wird auf WCAG 2.1 AA Richtlinien geprüft...',
-    readingOrderModalBtn: 'Lesereihenfolge',
-    allClearTitle: 'Alles in Ordnung!',
-    allClearDesc: 'Keine WCAG 2.1 AA Barrieren gefunden.',
-    interactiveContrast: 'Kontrast-Vorschau',
-    currentLabel: 'Aktuell',
-    suggestionLabel: 'Vorschlag',
-    jumpBtn: 'Zum Element springen',
-    applyFixBtn: 'Fehler beheben',
-    fixAllBtn: 'Alle beheben',
-    readingOrderTitle: 'Editor für Lesereihenfolge',
-    readingOrderDesc: 'Ordnen Sie Folienelemente von oben (zuerst gelesen) nach unten (zuletzt gelesen). WCAG 1.3.2.',
-    applyOrderBtn: 'Reihenfolge speichern',
-    cancelBtn: 'Abbrechen',
-    loadingElements: 'Elemente laden...',
-    preferencesTitle: 'Einstellungen',
-    contrastModeLabel: 'Kontrast-Korrekturmodus',
-    contrastModeDesc: 'Wählen Sie, wie barrierefreie Farben berechnet werden.',
-    preserveHsl: 'HSL-Farbton beibehalten (Empfohlen)',
-    preserveHslDesc: 'Verdunkelt die Helligkeit bei gleichem Farbton.',
-    snapMaterial: 'Google Material Palette',
-    snapMaterialDesc: 'Wechselt zum nächsten konformen Google-Farbton.',
-    autoFixLabel: 'Automatische Korrektur beim Scannen',
-    autoFixDesc: 'Behebt einfache Barrieren automatisch.',
-    languageLabel: 'Sprache der Benutzeroberfläche',
-    languageDesc: 'Wählen Sie Ihre bevorzugte Anzeigesprache.',
-    langAuto: 'Automatisch (Google Workspace)',
-    aiSettingsTitle: 'Gemini KI-Integration',
-    aiSettingsDesc: 'Optional: Verbinden Sie einen Gemini API-Schlüssel, um die Live-Bildbewertung und Link-Umschreibung zu aktivieren.',
-    saveBtn: 'Einstellungen speichern',
-    helpTitle: 'WCAG 2.1 AA Hilfe',
-    overviewTitle: 'Übersicht',
-    overviewDesc: 'Dieses Add-on prüft Google Docs und Slides auf Barrierefreiheit nach WCAG 2.1 AA.',
-    severityTitle: 'Definition der Schweregrade',
-    errorDef: 'Fehler: Kritische Barriere, die das Lesen verhindert (-15 Pkt).',
-    warningDef: 'Warnung: Strukturelles Problem oder schwere Hürde (-5 Pkt).',
-    noticeDef: 'Hinweis: Empfehlung oder optischer Verbesserungsvorschlag (-2 Pkt).',
-    rulesTitle: 'Geprüfte Richtlinien',
-    remedyTitle: 'Korrekturfunktionen',
-    remedyDesc: 'Klicken Sie auf Zum Element springen zur Markierung und Fehler beheben für die automatische Korrektur.',
-    gotItBtn: 'Verstanden'
-  },
-  ja: {
-    appTitle: 'アクセシビリティ・チェッカー',
-    googleWorkspace: 'Google Workspace',
-    helpBtn: 'ヘルプ',
-    settingsBtn: '設定',
-    wcagScore: 'WCAG 2.1 AA スコア',
-    errors: 'エラー',
-    warnings: '警告',
-    notices: '通知',
-    all: 'すべて',
-    rescanBtn: 'ドキュメントを再スキャン',
-    scanning: 'アクティブなファイルを WCAG 2.1 AA 基準でスキャン中...',
-    readingOrderModalBtn: '読み上げ順序エディタ',
-    allClearTitle: '問題はありません！',
-    allClearDesc: 'WCAG 2.1 AA アクセシビリティ違反は見つかりませんでした。',
-    interactiveContrast: 'インタラクティブ・コントラスト・プレビュー',
-    currentLabel: '現在の色',
-    suggestionLabel: '推奨色',
-    jumpBtn: '対象箇所へ移動',
-    applyFixBtn: '修正を適用',
-    fixAllBtn: 'すべて修正',
-    readingOrderTitle: 'スライド読み上げ順序エディタ',
-    readingOrderDesc: 'スライドの要素を上（最初に読み上げ）から下（最後に読み上げ）へ順序付けます（WCAG 1.3.2）。',
-    applyOrderBtn: '順序を保存',
-    cancelBtn: 'キャンセル',
-    loadingElements: '要素を読み込み中...',
-    preferencesTitle: '環境設定',
-    contrastModeLabel: 'コントラスト自動修正モード',
-    contrastModeDesc: 'コントラスト修正時に準拠色を算出する方法を選択します。',
-    preserveHsl: 'ブランド色相(HSL)を維持 (推奨)',
-    preserveHslDesc: '色相を保ったまま輝度を調整し、4.5:1 を達成します。',
-    snapMaterial: 'Google Material パレットにスナップ',
-    snapMaterialDesc: '最も近い準拠済みの Google カラーシェードにスナップします。',
-    autoFixLabel: 'スキャン時にワンクリック修正を自動適用',
-    autoFixDesc: 'スキャン実行時に自動修復可能な項目を即時修正します（デフォルト：オフ）。',
-    languageLabel: '表示言語 (Interface Language)',
-    languageDesc: 'ツールおよびレポート全体の言語を選択してください。',
-    langAuto: '自動 (Google Workspace の言語設定)',
-    aiSettingsTitle: 'Gemini AI 連携設定',
-    aiSettingsDesc: 'オプション: Gemini API キーを設定すると、画像のマルチモーダル視覚評価およびリンクテキストの AI 自動書換えが有効になります。',
-    saveBtn: '設定を保存',
-    helpTitle: 'WCAG 2.1 AA ガイドとヘルプ',
-    overviewTitle: '概要',
-    overviewDesc: 'このアドオンは、Google ドキュメントおよびスライドを WCAG 2.1 AA 基準に照らし合わせて自動検証します。',
-    severityTitle: '重要度レベルの定義',
-    errorDef: 'エラー: スクリーンリーダーユーザー等のコンテンツ理解を妨げる致命的な違反 (-15点)。',
-    warningDef: '警告: 重大なアクセシビリティ上の障壁となる構造的問題 (-5点)。',
-    noticeDef: '通知: 最適な可読性や推奨事項に関するリマインダー (-2点)。',
-    rulesTitle: '検証ルール一覧',
-    remedyTitle: '自動修復機能について',
-    remedyDesc: '「対象箇所へ移動」でドキュメント内の該当位置をハイライトし、「修正を適用」で即座に自動修正を実行できます。',
-    gotItBtn: 'OK'
+/**
+ * RTL Language codes: Arabic (ar), Hebrew (iw / he), Persian (fa), Urdu (ur).
+ */
+const RTL_LANGUAGES = new Set(['ar', 'iw', 'he', 'fa', 'ur']);
+
+/**
+ * Normalizes any locale string (BCP47 or POSIX, e.g. "zh_CN", "pt_BR", "fr-CA", "he", "iw", "tl")
+ * to the canonical supported dictionary key.
+ */
+export function normalizeLocale(locale?: string): string {
+  if (!locale) return 'en';
+  const clean = locale.trim().replace(/_/g, '-');
+  const lower = clean.toLowerCase();
+
+  // Explicit mappings and alias overrides
+  if (lower === 'he' || lower === 'iw' || lower.startsWith('he-') || lower.startsWith('iw-')) {
+    return 'iw';
   }
-};
+  if (
+    lower === 'zh-cn' ||
+    lower === 'zh-hans' ||
+    lower.startsWith('zh-hans') ||
+    lower.startsWith('zh-cn') ||
+    lower === 'zh-sg' ||
+    lower === 'zh'
+  ) {
+    return 'zh-CN';
+  }
+  if (
+    lower === 'zh-tw' ||
+    lower === 'zh-hant' ||
+    lower.startsWith('zh-hant') ||
+    lower.startsWith('zh-tw') ||
+    lower.startsWith('zh-hk') ||
+    lower.startsWith('zh-mo') ||
+    lower === 'zh-hk' ||
+    lower === 'zh-mo'
+  ) {
+    return 'zh-TW';
+  }
+  if (lower === 'pt-br' || lower === 'pt') {
+    return 'pt-BR';
+  }
+  if (lower === 'pt-pt') {
+    return 'pt-PT';
+  }
+  if (lower === 'tl' || lower === 'fil' || lower.startsWith('fil-') || lower.startsWith('tl-')) {
+    return 'fil';
+  }
+  if (lower === 'in' || lower === 'id' || lower.startsWith('id-') || lower.startsWith('in-')) {
+    return 'id';
+  }
+  if (lower === 'nb' || lower === 'nn' || lower === 'no' || lower.startsWith('no-') || lower.startsWith('nb-') || lower.startsWith('nn-')) {
+    return 'no';
+  }
+
+  // Direct case-insensitive match against dictionary keys
+  const directMatch = Object.keys(DICTIONARIES).find(k => k.toLowerCase() === lower);
+  if (directMatch) return directMatch;
+
+  // Language primary subtag match (e.g. "es-419" -> "es", "fr-CA" -> "fr", "en-GB" -> "en")
+  const primarySubtag = lower.split('-')[0];
+  const primaryMatch = Object.keys(DICTIONARIES).find(k => k.toLowerCase() === primarySubtag);
+  if (primaryMatch) return primaryMatch;
+
+  return 'en';
+}
+
+/**
+ * Checks if a given language or locale string represents a Right-to-Left (RTL) script.
+ */
+export function isRtlLocale(lang?: string): boolean {
+  if (!lang) return false;
+  const normalized = normalizeLocale(lang).toLowerCase();
+  if (RTL_LANGUAGES.has(normalized)) return true;
+  const primary = normalized.split('-')[0];
+  return RTL_LANGUAGES.has(primary);
+}
+
+/**
+ * Substitutes {{param}} or {param} placeholders in a translation template string.
+ */
+export function interpolateParams(template: string, params?: Record<string, string | number>): string {
+  if (!params || typeof template !== 'string') return template;
+  let result = template;
+  for (const [key, value] of Object.entries(params)) {
+    const valStr = String(value);
+    result = result.split(`{{${key}}}`).join(valStr);
+    result = result.split(`{${key}}`).join(valStr);
+  }
+  return result;
+}
 
 @Injectable({ providedIn: 'root' })
 export class I18nService {
+  /**
+   * User's preference setting ('AUTO' or specific locale code).
+   */
+  readonly currentLanguage: WritableSignal<string> = signal<string>('AUTO');
+
+  /**
+   * Effective resolved language code ('en', 'es', 'ar', etc.).
+   */
+  readonly resolvedLanguage: WritableSignal<string> = signal<string>('en');
+
+  /**
+   * Angular Signal indicating whether current resolved locale is RTL.
+   */
+  readonly isRtl: Signal<boolean> = computed<boolean>(() => isRtlLocale(this.resolvedLanguage()));
+
+  /**
+   * Angular Signal indicating HTML reading direction ('ltr' or 'rtl').
+   */
+  readonly dir: Signal<'ltr' | 'rtl'> = computed<'ltr' | 'rtl'>(() => (this.isRtl() ? 'rtl' : 'ltr'));
+
+  /**
+   * Backward-compatible RxJS Subject for components subscribing via lang$.
+   */
   private langSubject = new BehaviorSubject<string>('en');
-  readonly lang$ = this.langSubject.asObservable();
+  readonly lang$: Observable<string> = this.langSubject.asObservable();
 
   private activeLang = 'en';
 
+  constructor() {
+    this.setLanguage('AUTO');
+  }
+
+  /**
+   * Sets the active language preference and resolves the effective dictionary locale.
+   * @param pref User preference ('AUTO' or specific locale)
+   * @param workspaceLocale Host Google Workspace locale from Session.getActiveUserLocale()
+   */
   setLanguage(pref: string, workspaceLocale?: string): void {
-    if (!pref || pref === 'AUTO') {
-      const loc = (workspaceLocale || 'en').toLowerCase().substring(0, 2);
-      this.activeLang = DICTIONARIES[loc] ? loc : 'en';
+    const targetPref = pref || 'AUTO';
+    this.currentLanguage.set(targetPref);
+
+    let effectiveLocale: string;
+    if (targetPref === 'AUTO' || targetPref === 'auto') {
+      effectiveLocale = normalizeLocale(workspaceLocale || 'en');
     } else {
-      this.activeLang = DICTIONARIES[pref] ? pref : 'en';
+      effectiveLocale = normalizeLocale(targetPref);
     }
-    this.langSubject.next(this.activeLang);
+
+    if (!DICTIONARIES[effectiveLocale]) {
+      effectiveLocale = 'en';
+    }
+
+    this.activeLang = effectiveLocale;
+    this.resolvedLanguage.set(effectiveLocale);
+    this.langSubject.next(effectiveLocale);
   }
 
-  t(key: string): string {
+  /**
+   * Translates a given key with optional parameter interpolation.
+   * Falls back to English if the key is missing in the active dictionary,
+   * and falls back to key name if not found in English.
+   */
+  t(key: string, params?: Record<string, string | number>): string {
     const dict = DICTIONARIES[this.activeLang] || DICTIONARIES['en'];
-    return dict[key] || DICTIONARIES['en'][key] || key;
+    let template = dict[key] ?? DICTIONARIES['en']?.[key] ?? key;
+    if (params) {
+      template = interpolateParams(template, params);
+    }
+    return template;
   }
 
+  /**
+   * Backward-compatible method to get current active/resolved language.
+   */
   getCurrentLang(): string {
     return this.activeLang;
+  }
+
+  /**
+   * Returns current resolved effective language code.
+   */
+  getResolvedLang(): string {
+    return this.resolvedLanguage();
+  }
+
+  /**
+   * Returns current reading direction ('ltr' | 'rtl').
+   */
+  getDirection(): 'ltr' | 'rtl' {
+    return this.dir();
+  }
+
+
+  /**
+   * Returns list of supported language options for settings UI.
+   */
+  getSupportedLanguages(): LanguageOption[] {
+    return SUPPORTED_LANGUAGES;
+  }
+
+  /**
+   * Normalizes a locale code.
+   */
+  normalizeLocale(locale?: string): string {
+    return normalizeLocale(locale);
+  }
+
+  /**
+   * Checks if locale is RTL.
+   */
+  isRtlLocale(lang?: string): boolean {
+    return isRtlLocale(lang);
   }
 }

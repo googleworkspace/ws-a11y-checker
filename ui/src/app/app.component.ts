@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AccessibilityService, Issue, Settings } from './services/accessibility.service';
 import { I18nService } from './services/i18n.service';
@@ -36,7 +36,7 @@ import { HelpModalComponent } from './components/help-modal/help-modal.component
     HelpModalComponent
   ],
   template: `
-    <header class="workspace-app-bar">
+    <header class="workspace-app-bar" [attr.dir]="i18n.dir()">
       <div class="brand-title">
         <span class="google-icon" aria-hidden="true">♿</span>
         <div class="titles">
@@ -45,10 +45,10 @@ import { HelpModalComponent } from './components/help-modal/help-modal.component
         </div>
       </div>
       <div class="app-bar-actions">
-        <button type="button" class="action-chip" (click)="showHelp = true" aria-label="Open WCAG 2.1 AA help section">
+        <button type="button" class="action-chip" (click)="showHelp = true" [attr.aria-label]="i18n.t('helpAriaLabel')">
           {{ i18n.t('helpBtn') }}
         </button>
-        <button type="button" class="action-chip" (click)="showSettings = true" aria-label="Open accessibility checker preferences">
+        <button type="button" class="action-chip" (click)="showSettings = true" [attr.aria-label]="i18n.t('settingsAriaLabel')">
           {{ i18n.t('settingsBtn') }}
         </button>
       </div>
@@ -59,7 +59,7 @@ import { HelpModalComponent } from './components/help-modal/help-modal.component
       {{ announcement$ | async }}
     </div>
 
-    <main class="app-main">
+    <main class="main-content app-main" [attr.dir]="i18n.dir()">
       <app-dashboard
         [issues]="(issues$ | async) || []"
         [loading]="(loading$ | async) || false"
@@ -72,7 +72,7 @@ import { HelpModalComponent } from './components/help-modal/help-modal.component
         (fixAll)="onFixAll()">
       </app-dashboard>
 
-      <div *ngIf="loading$ | async" class="loading-bar" role="progressbar" aria-label="Scanning document">
+      <div *ngIf="loading$ | async" class="loading-bar" role="progressbar" [attr.aria-label]="i18n.t('scanningAriaLabel')">
         <div class="spinner"></div>
         <span>{{ i18n.t('scanning') }}</span>
       </div>
@@ -110,9 +110,10 @@ import { HelpModalComponent } from './components/help-modal/help-modal.component
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 4px 0 14px 0;
-      border-bottom: 1px solid #e8eaed;
-      margin-bottom: 16px;
+      padding-block: 4px 14px;
+      padding-inline: 0;
+      border-block-end: 1px solid #e8eaed;
+      margin-block-end: 16px;
     }
     .brand-title {
       display: flex;
@@ -157,7 +158,8 @@ import { HelpModalComponent } from './components/help-modal/help-modal.component
     }
     button.action-chip {
       height: 28px;
-      padding: 0 12px;
+      padding-block: 0;
+      padding-inline: 12px;
       font-size: 12px;
       border-radius: 14px;
       border: 1px solid #dadce0;
@@ -180,7 +182,7 @@ import { HelpModalComponent } from './components/help-modal/help-modal.component
       color: #1a73e8;
       border-radius: 8px;
       font-weight: 500;
-      margin-bottom: 14px;
+      margin-block-end: 14px;
     }
     .spinner {
       width: 16px;
@@ -209,7 +211,16 @@ export class AppComponent implements OnInit {
   showHelp = false;
   selectedFilter = 'ALL';
 
-  constructor(private a11y: AccessibilityService, public i18n: I18nService) {}
+  constructor(private a11y: AccessibilityService, public i18n: I18nService) {
+    effect(() => {
+      const dir = this.i18n.dir();
+      const lang = this.i18n.resolvedLanguage();
+      if (typeof document !== 'undefined' && document.documentElement) {
+        document.documentElement.dir = dir;
+        document.documentElement.lang = lang;
+      }
+    });
+  }
 
   ngOnInit(): void {
     this.a11y.loadSettings();

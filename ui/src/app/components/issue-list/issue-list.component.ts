@@ -26,14 +26,14 @@ import { LiteRtService } from '../../services/litert.service';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="issue-list-container" role="region" aria-label="Detected Accessibility Issues">
-      <div *ngIf="fixableCount > 1" class="fix-all-banner" role="region" aria-label="Bulk Remediation">
+    <div class="issue-list-container" role="region" [attr.aria-label]="i18n.t('detectedIssuesRegion')">
+      <div *ngIf="fixableCount > 1" class="fix-all-banner" role="region" [attr.aria-label]="i18n.t('bulkRemediationRegion')">
         <div class="banner-text">
-          <strong>⚡ {{ fixableCount }} Auto-Remediable Issues</strong>
-          <span>Apply 1-click automatic fixes to all eligible items at once.</span>
+          <strong>⚡ {{ i18n.t('bulkRemediableHeading', { count: fixableCount }) }}</strong>
+          <span>{{ i18n.t('bulkRemediableDesc') }}</span>
         </div>
         <button type="button" class="fix-all-btn" (click)="onFixAll()">
-          {{ i18n.t('fixAllBtn') || 'Fix All' }} ({{ fixableCount }})
+          {{ i18n.t('fixAllBtn') }} (<bdi>{{ fixableCount }}</bdi>)
         </button>
       </div>
 
@@ -48,17 +48,17 @@ import { LiteRtService } from '../../services/litert.service';
       <div *ngFor="let issue of issues" class="issue-card" [class]="issue.severity.toLowerCase()">
         <div class="card-header">
           <div class="badges">
-            <span class="severity-badge">{{ issue.severity }}</span>
-            <span class="wcag-badge" *ngIf="issue.wcagRule">{{ issue.wcagRule }}</span>
+            <span class="severity-badge"><bdi>{{ issue.severity }}</bdi></span>
+            <span class="wcag-badge" *ngIf="issue.wcagRule"><bdi>{{ issue.wcagRule }}</bdi></span>
           </div>
-          <span class="element-chip">{{ issue.elementType }}</span>
+          <span class="element-chip"><bdi>{{ issue.elementType }}</bdi></span>
         </div>
         
         <h3 class="issue-title">{{ issue.title }}</h3>
         <p class="issue-desc">{{ issue.description }}</p>
         
         <div class="snippet-box" *ngIf="issue.snippet">
-          <code>{{ issue.snippet }}</code>
+          <code dir="ltr"><bdi>{{ issue.snippet }}</bdi></code>
         </div>
 
         <!-- Color Contrast Swatch Preview -->
@@ -67,11 +67,11 @@ import { LiteRtService } from '../../services/litert.service';
           <div class="swatch-row">
             <div class="swatch current" [style.color]="issue.fixMetadata.currentHex" [style.background-color]="'#FFFFFF'">
               <span class="swatch-label">{{ i18n.t('currentLabel') }}</span>
-              <strong>{{ issue.fixMetadata.currentHex }}</strong>
+              <strong><bdi>{{ issue.fixMetadata.currentHex }}</bdi></strong>
             </div>
             <div class="swatch suggested" [style.color]="issue.fixMetadata.suggestedHex" [style.background-color]="'#FFFFFF'">
               <span class="swatch-label">{{ i18n.t('suggestionLabel') }}</span>
-              <strong>{{ issue.fixMetadata.suggestedHex }}</strong>
+              <strong><bdi>{{ issue.fixMetadata.suggestedHex }}</bdi></strong>
             </div>
           </div>
         </div>
@@ -79,40 +79,40 @@ import { LiteRtService } from '../../services/litert.service';
         <!-- Manual Alt Text Input Box -->
         <div *ngIf="issue.issueType === 'Alternative Text'" class="manual-fix-box">
           <div class="manual-fix-header">
-            <span class="manual-fix-label">Alternative Text (WCAG 1.1.1):</span>
+            <span class="manual-fix-label">{{ i18n.t('altTextLabel') }}</span>
             <button type="button" class="decorative-btn" [class.active]="isDecorative(issue.elementId)" (click)="setDecorative(issue)">
-              🎨 {{ isDecorative(issue.elementId) ? 'Decorative (alt="")' : 'Mark as Decorative (alt="")' }}
+              🎨 {{ isDecorative(issue.elementId) ? i18n.t('decorativeActive') : i18n.t('markDecorative') }}
             </button>
           </div>
           <input
             type="text"
             class="manual-input"
             [(ngModel)]="altTextSuggestions[issue.elementId]"
-            placeholder="Type descriptive alternative text (or leave empty for decorative)..."
+            [attr.placeholder]="i18n.t('altTextPlaceholder')"
           />
         </div>
 
         <!-- Manual Link Title Input Box -->
         <div *ngIf="issue.issueType === 'Meaningful Hyperlinks'" class="manual-fix-box">
           <div class="manual-fix-header">
-            <span class="manual-fix-label">Replacement Link Text:</span>
+            <span class="manual-fix-label">{{ i18n.t('replacementLinkLabel') }}</span>
             <button *ngIf="linkTitleSuggestions[issue.elementId] === undefined" type="button" class="decorative-btn" (click)="suggestLinkTitle(issue)">
-              Suggest Text
+              {{ i18n.t('suggestTextBtn') }}
             </button>
           </div>
           <input
             type="text"
             class="manual-input"
             [(ngModel)]="linkTitleSuggestions[issue.elementId]"
-            placeholder="Descriptive replacement link title..."
+            [attr.placeholder]="i18n.t('replacementLinkPlaceholder')"
           />
         </div>
 
         <div class="card-actions">
-          <button type="button" class="outlined-btn" (click)="select.emit(issue.elementId)" [attr.aria-label]="'Jump to element for ' + issue.title">
+          <button type="button" class="outlined-btn" (click)="select.emit(issue.elementId)" [attr.aria-label]="i18n.t('jumpBtnAriaLabel', { title: issue.title })">
             {{ i18n.t('jumpBtn') }}
           </button>
-          <button *ngIf="issue.canAutoFix" type="button" class="primary" (click)="onApplyFix(issue)" [attr.aria-label]="'Apply automatic fix for ' + issue.title">
+          <button *ngIf="issue.canAutoFix" type="button" class="primary" (click)="onApplyFix(issue)" [attr.aria-label]="i18n.t('applyFixAriaLabel', { title: issue.title })">
             {{ i18n.t('applyFixBtn') }}
           </button>
         </div>
@@ -138,27 +138,27 @@ import { LiteRtService } from '../../services/litert.service';
     .success-text h3 { margin: 0; font-size: 14px; font-weight: 500; color: #0d652d; }
     .success-text p { margin: 2px 0 0 0; font-size: 12px; color: #137333; }
 
-    .issue-card { border: 1px solid #dadce0; border-left: 4px solid #dadce0; border-radius: 8px; padding: 14px; background: #ffffff; transition: box-shadow 0.2s ease; }
+    .issue-card { border: 1px solid #dadce0; border-inline-start: 4px solid #dadce0; border-radius: 8px; padding: 14px; background: #ffffff; transition: box-shadow 0.2s ease; }
     .issue-card:hover { box-shadow: 0 1px 3px 1px rgba(60, 64, 67, 0.15); }
-    .issue-card.error { border-left-color: #d93025; }
-    .issue-card.warning { border-left-color: #e37400; }
-    .issue-card.notice { border-left-color: #1a73e8; }
+    .issue-card.error { border-inline-start-color: #d93025; }
+    .issue-card.warning { border-inline-start-color: #e37400; }
+    .issue-card.notice { border-inline-start-color: #1a73e8; }
 
-    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-block-end: 8px; }
     .badges { display: flex; align-items: center; gap: 6px; }
-    .severity-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 12px; letter-spacing: 0.3px; }
+    .severity-badge { font-size: 10px; font-weight: 700; padding-block: 2px; padding-inline: 8px; border-radius: 12px; letter-spacing: 0.3px; }
     .error .severity-badge { background: #fce8e6; color: #c5221f; }
     .warning .severity-badge { background: #fef7e0; color: #b06000; }
     .notice .severity-badge { background: #e8f0fe; color: #1967d2; }
 
-    .wcag-badge { font-size: 11px; font-weight: 500; color: #1a73e8; background: #f8fafd; border: 1px solid #d2e3fc; padding: 1px 8px; border-radius: 12px; }
-    .element-chip { font-size: 11px; color: #5f6368; background: #f1f3f4; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+    .wcag-badge { font-size: 11px; font-weight: 500; color: #1a73e8; background: #f8fafd; border: 1px solid #d2e3fc; padding-block: 1px; padding-inline: 8px; border-radius: 12px; }
+    .element-chip { font-size: 11px; color: #5f6368; background: #f1f3f4; padding-block: 2px; padding-inline: 8px; border-radius: 4px; font-weight: 500; }
 
     .issue-title { font-family: 'Google Sans', Roboto, sans-serif; font-size: 14px; font-weight: 500; margin: 0 0 6px 0; color: #202124; }
     .issue-desc { font-size: 12px; color: #3c4043; margin: 0 0 10px 0; line-height: 1.5; }
-    .snippet-box { background: #f8f9fa; border: 1px solid #e8eaed; padding: 8px 10px; border-radius: 4px; font-size: 11px; margin-bottom: 12px; word-break: break-all; color: #202124; font-family: 'Roboto Mono', monospace; }
-    .contrast-swatch-box { background: #f8fafd; border: 1px solid #d2e3fc; border-radius: 6px; padding: 10px; margin-bottom: 12px; }
-    .swatch-header { font-size: 11px; font-weight: 500; margin-bottom: 8px; color: #1a73e8; }
+    .snippet-box { background: #f8f9fa; border: 1px solid #e8eaed; padding-block: 8px; padding-inline: 10px; border-radius: 4px; font-size: 11px; margin-block-end: 12px; word-break: break-all; color: #202124; font-family: 'Roboto Mono', monospace; }
+    .contrast-swatch-box { background: #f8fafd; border: 1px solid #d2e3fc; border-radius: 6px; padding: 10px; margin-block-end: 12px; }
+    .swatch-header { font-size: 11px; font-weight: 500; margin-block-end: 8px; color: #1a73e8; }
     .swatch-row { display: flex; gap: 10px; }
     .swatch { flex: 1; padding: 8px; border-radius: 4px; border: 1px solid #dadce0; text-align: center; background: #ffffff; }
     .swatch-label { display: block; font-size: 10px; color: #5f6368; }
@@ -169,7 +169,7 @@ import { LiteRtService } from '../../services/litert.service';
       border: 1px solid #d2e3fc;
       border-radius: 6px;
       padding: 10px;
-      margin-bottom: 12px;
+      margin-block-end: 12px;
       display: flex;
       flex-direction: column;
       gap: 6px;
@@ -178,7 +178,8 @@ import { LiteRtService } from '../../services/litert.service';
     .manual-fix-label { font-size: 11px; font-weight: 500; color: #1a73e8; }
     button.decorative-btn {
       height: 24px;
-      padding: 0 8px;
+      padding-block: 0;
+      padding-inline: 8px;
       font-size: 11px;
       border-radius: 12px;
       background: #ffffff;
@@ -189,7 +190,8 @@ import { LiteRtService } from '../../services/litert.service';
     button.decorative-btn:hover { background: #f1f3f4; }
     button.decorative-btn.active { background: #e6f4ea; border-color: #188038; color: #137333; font-weight: 600; }
     .manual-input {
-      padding: 6px 10px;
+      padding-block: 6px;
+      padding-inline: 10px;
       border: 1px solid #dadce0;
       border-radius: 4px;
       font-size: 12px;
@@ -202,6 +204,11 @@ import { LiteRtService } from '../../services/litert.service';
     .card-actions { display: flex; gap: 8px; justify-content: flex-end; }
     button.outlined-btn { background: #ffffff; border: 1px solid #dadce0; color: #1a73e8; }
     button.outlined-btn:hover { background: #f8fafd; border-color: #1a73e8; }
+
+    .tech-token, .wcag-badge, .element-chip, .severity-badge, code, .snippet-box, .swatch strong {
+      direction: ltr;
+      unicode-bidi: isolate;
+    }
   `]
 })
 export class IssueListComponent {

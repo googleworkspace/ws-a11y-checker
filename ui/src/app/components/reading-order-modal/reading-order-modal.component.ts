@@ -31,11 +31,11 @@ export interface SlideElementAST {
   standalone: true,
   imports: [CommonModule, DragDropModule],
   template: `
-    <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title" [attr.dir]="i18n.dir()">
       <div class="google-modal">
         <div class="modal-header">
           <h2 id="modal-title">{{ i18n.t('readingOrderTitle') }}</h2>
-          <button type="button" class="close-btn" (click)="close.emit()" aria-label="Close reading order editor modal">✕</button>
+          <button type="button" class="close-btn" (click)="close.emit()" [attr.aria-label]="i18n.t('closeReadingOrderAriaLabel')">✕</button>
         </div>
         <p class="instruction">
           {{ i18n.t('readingOrderDesc') }}
@@ -45,17 +45,17 @@ export interface SlideElementAST {
 
         <div *ngIf="!loading" cdkDropList class="element-list" (cdkDropListDropped)="drop($event)">
           <div *ngFor="let el of elements; let i = index" cdkDrag class="element-row">
-            <div class="drag-handle" cdkDragHandle aria-label="Drag handle">☰</div>
+            <div class="drag-handle" cdkDragHandle [attr.aria-label]="i18n.t('dragHandleAriaLabel')">☰</div>
             <div class="el-info">
-              <span class="el-index">{{ i + 1 }}.</span>
-              <span class="el-type">[{{ el.objectType }}]</span>
-              <strong class="el-preview">{{ el.previewText }}</strong>
+              <span class="el-index"><bdi>{{ i + 1 }}.</bdi></span>
+              <span class="el-type"><bdi>[{{ el.objectType }}]</bdi></span>
+              <strong class="el-preview"><bdi>{{ el.previewText }}</bdi></strong>
             </div>
             <div class="keyboard-controls">
-              <button type="button" class="icon-btn" [disabled]="i === 0" (click)="moveUp(i)" [attr.aria-label]="'Move item ' + (i + 1) + ' up'">
+              <button type="button" class="icon-btn" [disabled]="i === 0" (click)="moveUp(i)" [attr.aria-label]="i18n.t('moveUpAriaLabel', { index: i + 1 })">
                 ↑
               </button>
-              <button type="button" class="icon-btn" [disabled]="i === elements.length - 1" (click)="moveDown(i)" [attr.aria-label]="'Move item ' + (i + 1) + ' down'">
+              <button type="button" class="icon-btn" [disabled]="i === elements.length - 1" (click)="moveDown(i)" [attr.aria-label]="i18n.t('moveDownAriaLabel', { index: i + 1 })">
                 ↓
               </button>
             </div>
@@ -73,26 +73,30 @@ export interface SlideElementAST {
   `,
   styles: [`
     .modal-backdrop {
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      position: fixed; inset: 0;
       background: rgba(32, 33, 36, 0.4); display: flex; align-items: center; justify-content: center; z-index: 1000;
     }
     .google-modal {
       background: #ffffff; border-radius: 8px; width: 92%; max-width: 460px; max-height: 85vh;
       display: flex; flex-direction: column; box-shadow: 0 8px 10px 1px rgba(0,0,0,0.14), 0 3px 14px 2px rgba(0,0,0,0.12);
     }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #e8eaed; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; padding-block: 16px; padding-inline: 20px; border-block-end: 1px solid #e8eaed; }
     .modal-header h2 { margin: 0; font-size: 16px; font-weight: 500; color: #202124; }
     .close-btn { border: none; background: none; font-size: 16px; color: #5f6368; }
-    .instruction { font-size: 12px; color: #5f6368; padding: 12px 20px; margin: 0; line-height: 1.5; }
-    .element-list { flex: 1; overflow-y: auto; padding: 0 20px; }
-    .element-row { display: flex; align-items: center; justify-content: space-between; background: #f8fafd; border: 1px solid #dadce0; border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; }
-    .drag-handle { cursor: grab; margin-right: 12px; color: #80868b; font-size: 14px; }
+    .instruction { font-size: 12px; color: #5f6368; padding-block: 12px; padding-inline: 20px; margin: 0; line-height: 1.5; }
+    .element-list { flex: 1; overflow-y: auto; padding-block: 0; padding-inline: 20px; }
+    .element-row { display: flex; align-items: center; justify-content: space-between; background: #f8fafd; border: 1px solid #dadce0; border-radius: 6px; padding-block: 8px; padding-inline: 12px; margin-block-end: 8px; }
+    .drag-handle { cursor: grab; margin-inline-end: 12px; color: #80868b; font-size: 14px; }
     .el-info { flex: 1; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .el-index { font-weight: 700; margin-right: 6px; color: #1a73e8; }
-    .el-type { color: #5f6368; margin-right: 6px; }
+    .el-index { font-weight: 700; margin-inline-end: 6px; color: #1a73e8; }
+    .el-type { color: #5f6368; margin-inline-end: 6px; }
     .keyboard-controls { display: flex; gap: 4px; }
-    button.icon-btn { padding: 2px 8px; height: 26px; font-size: 12px; }
-    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid #e8eaed; }
+    button.icon-btn { padding-block: 2px; padding-inline: 8px; height: 26px; font-size: 12px; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding-block: 14px; padding-inline: 20px; border-block-start: 1px solid #e8eaed; }
+
+    .el-index, .el-type, .el-preview {
+      unicode-bidi: isolate;
+    }
   `]
 })
 export class ReadingOrderModalComponent implements OnInit {

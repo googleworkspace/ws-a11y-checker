@@ -18,5 +18,8 @@ module.exports = {
     ],
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+  moduleNameMapper: {
+    '^@angular/core$': '<rootDir>/tests/mocks/angular-core.mock.ts',
+  },
   verbose: true,
 };

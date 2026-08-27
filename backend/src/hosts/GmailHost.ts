@@ -18,6 +18,25 @@ import { AccessibilityIssue } from '../models/Issue';
 import { checkHyperlink } from '../checks/HyperlinkCheck';
 import { detectMimeFromBytes, getInlineImageMapViaRest } from '../utils/AiUtil';
 import { getContrastRatio } from '../utils/ColorUtil';
+import { getBackendTranslation } from '../utils/i18n';
+
+/**
+ * Resolves active locale from user preferences or active Workspace session.
+ */
+function getActiveLocale(e?: any): string {
+  try {
+    if (typeof PropertiesService !== 'undefined') {
+      const pref = PropertiesService.getUserProperties()?.getProperty('language');
+      if (pref && pref !== 'AUTO') {
+        return pref;
+      }
+    }
+    if (typeof Session !== 'undefined' && typeof Session.getActiveUserLocale === 'function') {
+      return Session.getActiveUserLocale() || 'en';
+    }
+  } catch (err) {}
+  return 'en';
+}
 
 /**
  * Evaluates whether an alternative text string is missing or a generic filename/default label.
@@ -654,7 +673,8 @@ export function convertAllImagesToBase64(
 /**
  * Helper to render issues with 1-click Quick Fix auto-remediation buttons on Gmail cards.
  */
-function renderIssuesWithQuickFix(section: GoogleAppsScript.Card_Service.CardSection, issues: AccessibilityIssue[], draftId: string, source: 'COMPOSE' | 'HOMEPAGE') {
+function renderIssuesWithQuickFix(section: GoogleAppsScript.Card_Service.CardSection, issues: AccessibilityIssue[], draftId: string, source: 'COMPOSE' | 'HOMEPAGE', loc?: string) {
+  const effectiveLocale = loc || getActiveLocale();
   const fixableIssues = issues.filter(i => i.canAutoFix);
   if (fixableIssues.length > 1) {
     const fixAllAction = CardService.newAction()
@@ -664,12 +684,15 @@ function renderIssuesWithQuickFix(section: GoogleAppsScript.Card_Service.CardSec
         source: source,
       });
 
-    section.addWidget(
-      CardService.newTextButton()
-        .setText(`⚡ Fix All (${fixableIssues.length} Issues)`)
-        .setOnClickAction(fixAllAction)
-        .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
-    );
+    const fixAllBtn = CardService.newTextButton()
+      .setText(getBackendTranslation('cardFixAllBtn', effectiveLocale, { count: fixableIssues.length }))
+      .setOnClickAction(fixAllAction);
+
+    if ((CardService as any).TextButtonStyle?.FILLED) {
+      fixAllBtn.setTextButtonStyle((CardService as any).TextButtonStyle.FILLED);
+    }
+
+    section.addWidget(fixAllBtn);
   }
 
   issues.forEach((issue: any) => {
@@ -678,15 +701,15 @@ function renderIssuesWithQuickFix(section: GoogleAppsScript.Card_Service.CardSec
 
     if (issue.canAutoFix) {
       let fixType = 'LINK';
-      let buttonText = `✨ Quick Fix: Rename Link ("${issue.suggestedText}")`;
+      let buttonText = getBackendTranslation('cardQuickFixLink', effectiveLocale, { suggestedText: issue.suggestedText });
 
       if (issue.issueType === 'Alternative Text') {
         // 1. Custom User Alt Text Input Field & Save Button
         const inputFieldName = `customAlt_${issue.imgIdx || 1}`;
         const customInput = CardService.newTextInput()
           .setFieldName(inputFieldName)
-          .setTitle(`Manual Alt Text (Image #${issue.imgIdx || 1})`)
-          .setHint('Enter descriptive alternative text...');
+          .setTitle(getBackendTranslation('cardManualAltTitle', effectiveLocale, { index: issue.imgIdx || 1 }))
+          .setHint(getBackendTranslation('cardManualAltHint', effectiveLocale));
 
         const customAltAction = CardService.newAction()
           .setFunctionName('rpcApplyGmailFix')
@@ -701,7 +724,7 @@ function renderIssuesWithQuickFix(section: GoogleAppsScript.Card_Service.CardSec
         section.addWidget(customInput);
         section.addWidget(
           CardService.newTextButton()
-            .setText(`✍️ Save Custom Alt Text`)
+            .setText(getBackendTranslation('cardSaveAltBtn', effectiveLocale))
             .setOnClickAction(customAltAction)
         );
 
@@ -718,19 +741,19 @@ function renderIssuesWithQuickFix(section: GoogleAppsScript.Card_Service.CardSec
 
         section.addWidget(
           CardService.newTextButton()
-            .setText(`🎨 Mark Image as Decorative (alt="")`)
+            .setText(getBackendTranslation('cardMarkDecorativeBtn', effectiveLocale))
             .setOnClickAction(decorativeAction)
         );
 
         section.addWidget(
           CardService.newTextParagraph().setText(
-            '<font color="#5f6368"><i>ℹ️ Note: After saving alt text, close and re-open the draft to see changes in Gmail compose.</i></font>'
+            `<font color="#5f6368"><i>${getBackendTranslation('cardAltNote', effectiveLocale)}</i></font>`
           )
         );
       } else {
         if (issue.issueType === 'List Formatting') {
           fixType = 'LIST';
-          buttonText = `✨ Quick Fix: Convert to Bullet List`;
+          buttonText = getBackendTranslation('cardQuickFixList', effectiveLocale);
         }
 
         const fixAction = CardService.newAction()
@@ -905,11 +928,12 @@ export function rpcApplyGmailFix(e: any): any {
     }
   }
 
+  const loc = getActiveLocale(e);
   const notice = fixType === 'CUSTOM_ALT_TEXT'
-    ? '✓ Alt text saved to draft! (Close and re-open draft to see updates in Gmail)'
+    ? getBackendTranslation('cardNoticeAltSaved', loc)
     : fixType === 'MARK_DECORATIVE'
-    ? '✓ Image marked as decorative (alt="")! (Close and re-open draft to see updates in Gmail)'
-    : '✓ Fix applied successfully to draft!';
+    ? getBackendTranslation('cardNoticeDecorative', loc)
+    : getBackendTranslation('cardNoticeFixApplied', loc);
 
   const cards = source === 'HOMEPAGE'
     ? buildGmailHomepageCard(e, notice, updatedHtml, inlineBlobs)
@@ -928,12 +952,13 @@ export function rpcApplyAllGmailFixes(e: any): any {
   console.log('[rpcApplyAllGmailFixes] START. Triggered with event parameters:', JSON.stringify(e?.parameters || {}));
   const draftId = e?.parameters?.draftId;
   const source = e?.parameters?.source || 'COMPOSE';
+  const loc = getActiveLocale(e);
 
   let { htmlBody, subject, draftId: resolvedId, msgId, inlineBlobs, mimeMap } = resolveDraftContent(e, true);
   let effectiveDraftId = draftId || resolvedId;
 
   if (!htmlBody) {
-    const notice = '⚠️ Could not load active draft content to apply fixes.';
+    const notice = getBackendTranslation('cardNoDraftTitle', loc);
     const cards = source === 'HOMEPAGE' ? buildGmailHomepageCard(e, notice) : buildGmailComposeCard(e, notice);
     return CardService.newActionResponseBuilder()
       .setNavigation(CardService.newNavigation().updateCard(cards[0]))
@@ -1032,7 +1057,7 @@ export function rpcApplyAllGmailFixes(e: any): any {
     }
   }
 
-  const notice = `✓ Applied ${fixedCount} accessibility fix(es) to draft! (Close and re-open draft to see updates in Gmail)`;
+  const notice = getBackendTranslation('cardNoticeFixAllApplied', loc, { count: fixedCount });
 
   const cards = source === 'HOMEPAGE'
     ? buildGmailHomepageCard(e, notice, updatedHtml, inlineBlobs)
@@ -1066,8 +1091,9 @@ function checkAuthorization(): void {
 export function buildGmailComposeCard(e: any, noticeMsg?: string, overrideHtml?: string, overrideBlobs?: GoogleAppsScript.Base.Blob[]): GoogleAppsScript.Card_Service.Card[] {
   console.log('[buildGmailComposeCard] Triggered with event:', JSON.stringify(e || {}));
   checkAuthorization();
+  const loc = getActiveLocale(e);
   const builder = CardService.newCardBuilder();
-  builder.setHeader(CardService.newCardHeader().setTitle('Email Accessibility Checker'));
+  builder.setHeader(CardService.newCardHeader().setTitle(getBackendTranslation('cardTitle', loc)));
 
   const section = CardService.newCardSection();
 
@@ -1076,7 +1102,7 @@ export function buildGmailComposeCard(e: any, noticeMsg?: string, overrideHtml?:
     .setParameters({ source: 'COMPOSE' });
   section.addWidget(
     CardService.newTextButton()
-      .setText('🔄 Refresh / Re-scan Draft')
+      .setText(getBackendTranslation('cardRefreshBtn', loc))
       .setOnClickAction(refreshAction)
   );
 
@@ -1085,7 +1111,7 @@ export function buildGmailComposeCard(e: any, noticeMsg?: string, overrideHtml?:
     .setParameters({ source: 'COMPOSE' });
   section.addWidget(
     CardService.newTextButton()
-      .setText('🧪 Reset Demo Email Draft')
+      .setText(getBackendTranslation('cardResetDemoBtn', loc))
       .setOnClickAction(demoAction)
   );
 
@@ -1114,27 +1140,27 @@ export function buildGmailComposeCard(e: any, noticeMsg?: string, overrideHtml?:
 
     if (htmlBody) {
       if (subject) {
-        section.addWidget(CardService.newTextParagraph().setText(`<b>Draft:</b> ${subject}`));
+        section.addWidget(CardService.newTextParagraph().setText(getBackendTranslation('cardCheckingDraft', loc, { subject })));
       }
       const issues = auditGmailDraftHtml(htmlBody, inlineBlobs);
 
       if (issues.length === 0) {
-        const textWidget = CardService.newTextParagraph().setText('<b>✓ All Clear!</b><br>No WCAG 2.1 Level AA link or image accessibility issues detected in your draft email.');
+        const textWidget = CardService.newTextParagraph().setText(`<b>${getBackendTranslation('cardAllClearTitle', loc)}</b><br>${getBackendTranslation('cardAllClearDesc', loc)}`);
         section.addWidget(textWidget);
       } else {
-        const headerWidget = CardService.newTextParagraph().setText(`<b>Found ${issues.length} Accessibility Issue(s)</b>`);
+        const headerWidget = CardService.newTextParagraph().setText(`<b>${getBackendTranslation('cardFoundIssues', loc, { count: issues.length })}</b>`);
         section.addWidget(headerWidget);
-        renderIssuesWithQuickFix(section, issues, draftId, 'COMPOSE');
+        renderIssuesWithQuickFix(section, issues, draftId, 'COMPOSE', loc);
       }
     } else {
       section.addWidget(
         CardService.newTextParagraph().setText(
-          '<b>⚠️ No Active Draft Content Detected</b><br><br>' +
-          'When invoked, the add-on checks for your active email draft. No saved draft body was found right now.<br><br>' +
-          '<b>How to audit your email:</b><br>' +
-          '1. Type a recipient, subject, or message body in the compose window.<br>' +
-          '2. Wait ~2 seconds for Gmail to auto-save the draft to the server.<br>' +
-          '3. Re-open or click check below.'
+          `<b>${getBackendTranslation('cardNoDraftTitle', loc)}</b><br><br>` +
+          `${getBackendTranslation('cardNoDraftDesc', loc)}<br><br>` +
+          `<b>${getBackendTranslation('cardHowToAuditTitle', loc)}</b><br>` +
+          `${getBackendTranslation('cardHowToAuditStep1', loc)}<br>` +
+          `${getBackendTranslation('cardHowToAuditStep2', loc)}<br>` +
+          `${getBackendTranslation('cardHowToAuditStep3', loc)}`
         )
       );
     }
@@ -1155,8 +1181,9 @@ export function buildGmailComposeCard(e: any, noticeMsg?: string, overrideHtml?:
 export function buildGmailHomepageCard(e: any, noticeMsg?: string, overrideHtml?: string, overrideBlobs?: GoogleAppsScript.Base.Blob[]): GoogleAppsScript.Card_Service.Card[] {
   console.log('[buildGmailHomepageCard] Triggered. NoticeMsg present:', !!noticeMsg);
   checkAuthorization();
+  const loc = getActiveLocale(e);
   const builder = CardService.newCardBuilder();
-  builder.setHeader(CardService.newCardHeader().setTitle('Email Accessibility Checker'));
+  builder.setHeader(CardService.newCardHeader().setTitle(getBackendTranslation('cardTitle', loc)));
 
   const section = CardService.newCardSection();
 
@@ -1165,7 +1192,7 @@ export function buildGmailHomepageCard(e: any, noticeMsg?: string, overrideHtml?
     .setParameters({ source: 'HOMEPAGE' });
   section.addWidget(
     CardService.newTextButton()
-      .setText('🧪 Create Demo Email Draft')
+      .setText(getBackendTranslation('cardCreateDemoBtn', loc))
       .setOnClickAction(demoAction)
   );
 
@@ -1194,13 +1221,13 @@ export function buildGmailHomepageCard(e: any, noticeMsg?: string, overrideHtml?
 
     if (htmlBody) {
       section.addWidget(
-        CardService.newTextParagraph().setText(`<b>Checking Draft:</b> ${subject || '(Untitled Draft)'}`)
+        CardService.newTextParagraph().setText(`<b>${getBackendTranslation('cardCheckingDraft', loc, { subject: subject || '(Untitled Draft)' })}</b>`)
       );
 
       const refreshAction = CardService.newAction().setFunctionName('refreshGmailHomepageCard');
       section.addWidget(
         CardService.newTextButton()
-          .setText('🔄 Refresh Audit')
+          .setText(getBackendTranslation('cardRefreshAuditBtn', loc))
           .setOnClickAction(refreshAction)
       );
 
@@ -1208,35 +1235,29 @@ export function buildGmailHomepageCard(e: any, noticeMsg?: string, overrideHtml?
 
       if (issues.length === 0) {
         section.addWidget(
-          CardService.newTextParagraph().setText('<b>✓ All Clear!</b><br>No WCAG 2.1 Level AA link or image accessibility issues detected in your draft email.')
+          CardService.newTextParagraph().setText(`<b>${getBackendTranslation('cardAllClearTitle', loc)}</b><br>${getBackendTranslation('cardAllClearDesc', loc)}`)
         );
       } else {
         section.addWidget(
-          CardService.newTextParagraph().setText(`<b>Found ${issues.length} Accessibility Issue(s)</b>`)
+          CardService.newTextParagraph().setText(`<b>${getBackendTranslation('cardFoundIssues', loc, { count: issues.length })}</b>`)
         );
-        renderIssuesWithQuickFix(section, issues, draftId, 'HOMEPAGE');
+        renderIssuesWithQuickFix(section, issues, draftId, 'HOMEPAGE', loc);
       }
     } else {
       section.addWidget(
         CardService.newTextParagraph().setText(
-          '<b>Welcome to Google Workspace Accessibility Checker!</b><br><br>' +
-          'This add-on scans your email drafts for WCAG 2.1 AA compliance and offers 1-click intelligent auto-remediation.<br><br>' +
-          '<b>What We Check:</b><br>' +
-          '• <b>Links:</b> Unclear anchor text & raw URLs<br>' +
-          '• <b>Images:</b> Missing or generic alt text<br>' +
-          '• <b>Contrast:</b> Low text contrast ratio<br>' +
-          '• <b>Headings:</b> Non-semantic faux headings<br>' +
-          '• <b>Tables:</b> Data tables missing headers<br>' +
-          '• <b>Lists:</b> Simulated manual bullet lists<br>' +
-          '• <b>Typography:</b> Small unreadable text sizes<br><br>' +
-          '<b>How to Start:</b><br>' +
-          'Open or compose an email in Gmail, and the checker will automatically scan your draft!'
+          `<b>${getBackendTranslation('cardNoDraftTitle', loc)}</b><br><br>` +
+          `${getBackendTranslation('cardNoDraftDesc', loc)}<br><br>` +
+          `<b>${getBackendTranslation('cardHowToAuditTitle', loc)}</b><br>` +
+          `${getBackendTranslation('cardHowToAuditStep1', loc)}<br>` +
+          `${getBackendTranslation('cardHowToAuditStep2', loc)}<br>` +
+          `${getBackendTranslation('cardHowToAuditStep3', loc)}`
         )
       );
       const checkAction = CardService.newAction().setFunctionName('rpcScanLatestDraft');
       section.addWidget(
         CardService.newTextButton()
-          .setText('🔍 Scan Latest Saved Draft')
+          .setText(getBackendTranslation('cardScanLatestBtn', loc))
           .setOnClickAction(checkAction)
       );
     }
@@ -1256,10 +1277,12 @@ export function buildGmailHomepageCard(e: any, noticeMsg?: string, overrideHtml?
  */
 export function refreshGmailComposeCard(e: any): GoogleAppsScript.Card_Service.ActionResponse {
   console.log('[refreshGmailComposeCard] Triggered.');
-  const cards = buildGmailComposeCard(e, '✓ Draft re-scanned successfully.');
+  const loc = getActiveLocale(e);
+  const notice = getBackendTranslation('cardNoticeRescanned', loc);
+  const cards = buildGmailComposeCard(e, notice);
   return CardService.newActionResponseBuilder()
     .setNavigation(CardService.newNavigation().updateCard(cards[0]))
-    .setNotification(CardService.newNotification().setText('✓ Draft re-scanned successfully.'))
+    .setNotification(CardService.newNotification().setText(notice))
     .build();
 }
 
@@ -1268,10 +1291,12 @@ export function refreshGmailComposeCard(e: any): GoogleAppsScript.Card_Service.A
  */
 export function refreshGmailHomepageCard(e: any): GoogleAppsScript.Card_Service.ActionResponse {
   console.log('[refreshGmailHomepageCard] Triggered.');
-  const cards = buildGmailHomepageCard(e, '✓ Draft re-scanned successfully.');
+  const loc = getActiveLocale(e);
+  const notice = getBackendTranslation('cardNoticeRescanned', loc);
+  const cards = buildGmailHomepageCard(e, notice);
   return CardService.newActionResponseBuilder()
     .setNavigation(CardService.newNavigation().updateCard(cards[0]))
-    .setNotification(CardService.newNotification().setText('✓ Draft re-scanned successfully.'))
+    .setNotification(CardService.newNotification().setText(notice))
     .build();
 }
 
@@ -1281,8 +1306,9 @@ export function refreshGmailHomepageCard(e: any): GoogleAppsScript.Card_Service.
 export function buildGmailMessageCard(e: any): GoogleAppsScript.Card_Service.Card[] {
   console.log('[buildGmailMessageCard] Triggered.');
   checkAuthorization();
+  const loc = getActiveLocale(e);
   const builder = CardService.newCardBuilder();
-  builder.setHeader(CardService.newCardHeader().setTitle('Email Accessibility Checker'));
+  builder.setHeader(CardService.newCardHeader().setTitle(getBackendTranslation('cardTitle', loc)));
 
   const section = CardService.newCardSection();
 
@@ -1310,18 +1336,18 @@ export function buildGmailMessageCard(e: any): GoogleAppsScript.Card_Service.Car
 
     if (htmlBody) {
       section.addWidget(
-        CardService.newTextParagraph().setText(`<b>Auditing Message:</b> ${msgSubject}`)
+        CardService.newTextParagraph().setText(`<b>${getBackendTranslation('cardCheckingDraft', loc, { subject: msgSubject })}</b>`)
       );
 
       const issues = auditGmailDraftHtml(htmlBody, inlineBlobs);
 
       if (issues.length === 0) {
         section.addWidget(
-          CardService.newTextParagraph().setText('<b>✓ All Clear!</b><br>No WCAG 2.1 Level AA link or image accessibility issues detected in this email.')
+          CardService.newTextParagraph().setText(`<b>${getBackendTranslation('cardAllClearTitle', loc)}</b><br>${getBackendTranslation('cardAllClearDesc', loc)}`)
         );
       } else {
         section.addWidget(
-          CardService.newTextParagraph().setText(`<b>Found ${issues.length} Accessibility Issue(s)</b>`)
+          CardService.newTextParagraph().setText(`<b>${getBackendTranslation('cardFoundIssues', loc, { count: issues.length })}</b>`)
         );
         issues.forEach((issue: any) => {
           const keyText = `<b>${issue.severity}</b>: ${issue.title}<br><i>${issue.description}</i>`;
@@ -1329,7 +1355,7 @@ export function buildGmailMessageCard(e: any): GoogleAppsScript.Card_Service.Car
         });
       }
     } else {
-      section.addWidget(CardService.newTextParagraph().setText('Could not load email message content for auditing.'));
+      section.addWidget(CardService.newTextParagraph().setText(getBackendTranslation('cardNoDraftDesc', loc) || 'Could not load email message content for auditing.'));
     }
 
     builder.addSection(section);
@@ -1348,6 +1374,7 @@ export function buildGmailMessageCard(e: any): GoogleAppsScript.Card_Service.Car
 export function rpcPopulateGmailDemo(e: any): any {
   console.log('[rpcPopulateGmailDemo] START. Triggered with event:', JSON.stringify(e || {}));
   const source = e?.parameters?.source || 'COMPOSE';
+  const loc = getActiveLocale(e);
 
   const demoHtml = `<div dir="ltr">
 <div style="font-size: 18px; font-weight: bold; color: #1a73e8; margin-bottom: 12px;">Welcome to the Gmail Accessibility Audit Demo</div>
@@ -1430,7 +1457,7 @@ export function rpcPopulateGmailDemo(e: any): any {
     }
 
     const notice = newDraftId
-      ? '✓ Created a new Demo Test Draft in your Gmail Drafts folder! Open your Drafts folder to test it!'
+      ? getBackendTranslation('cardNoticeDemoCreated', loc)
       : `⚠️ Could not create demo draft: ${lastErrMsg || 'Unknown Apps Script error'}`;
 
     const cards = buildGmailHomepageCard(e, notice);
@@ -1445,9 +1472,10 @@ export function rpcPopulateGmailDemo(e: any): any {
  */
 export function rpcScanLatestDraft(e: any): GoogleAppsScript.Card_Service.ActionResponse {
   console.log('[rpcScanLatestDraft] Triggered. Explicitly scanning latest draft.');
+  const loc = getActiveLocale(e);
   const { htmlBody, subject, draftId } = resolveDraftContent(e, true);
   if (!htmlBody) {
-    const cards = buildGmailHomepageCard(e, '⚠️ No saved drafts found in your Gmail account.');
+    const cards = buildGmailHomepageCard(e, getBackendTranslation('cardNoticeNoDrafts', loc));
     return CardService.newActionResponseBuilder()
       .setNavigation(CardService.newNavigation().updateCard(cards[0]))
       .build();

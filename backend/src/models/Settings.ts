@@ -14,6 +14,44 @@
  * limitations under the License.
  */
 
+export type SupportedLanguage =
+  | 'AUTO'
+  | 'en'
+  | 'ar'
+  | 'iw'
+  | 'he'
+  | 'fa'
+  | 'ur'
+  | 'ja'
+  | 'zh-CN'
+  | 'zh-TW'
+  | 'ko'
+  | 'hi'
+  | 'bn'
+  | 'es'
+  | 'fr'
+  | 'de'
+  | 'it'
+  | 'pt-BR'
+  | 'pt-PT'
+  | 'nl'
+  | 'pl'
+  | 'ru'
+  | 'tr'
+  | 'sv'
+  | 'da'
+  | 'no'
+  | 'fi'
+  | 'cs'
+  | 'hu'
+  | 'ro'
+  | 'el'
+  | 'uk'
+  | 'id'
+  | 'vi'
+  | 'th'
+  | 'fil';
+
 /**
  * User customizable settings stored via PropertiesService.getUserProperties().
  */
@@ -23,7 +61,7 @@ export interface AddonSettings {
   /** Whether to automatically execute safe 1-click fixes during scans (disabled by default) */
   enableAutoRemediation: boolean;
   /** Language preference */
-  language?: string;
+  language?: SupportedLanguage | string;
   /** Detected Workspace user locale */
   userLocale?: string;
 }
@@ -32,4 +70,5 @@ export const DEFAULT_SETTINGS: AddonSettings = {
   contrastFixMode: 'PRESERVE_HSL',
   enableAutoRemediation: false,
   language: 'AUTO',
+  userLocale: 'en',
 };

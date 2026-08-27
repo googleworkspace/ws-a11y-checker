@@ -81,7 +81,7 @@ export class AccessibilityService {
 
   async scanDocument(): Promise<void> {
     this.loadingSubject.next(true);
-    this.announce('Scanning document for WCAG 2.1 AA accessibility violations...');
+    this.announce(this.i18n.t('announceScanning'));
     try {
       const host = await this.gScript.run<'DOCS' | 'SLIDES' | 'UNKNOWN'>('rpcGetHostType');
       if (host) {
@@ -91,9 +91,9 @@ export class AccessibilityService {
       this.issuesSubject.next(issues || []);
       this.hasScannedSubject.next(true);
       const errCount = (issues || []).filter((i) => i.severity === 'ERROR').length;
-      this.announce(`Scan complete. Found ${issues.length} total issues, including ${errCount} critical WCAG 2.1 AA errors.`);
+      this.announce(this.i18n.t('announceScanComplete', { total: issues.length, errors: errCount }));
     } catch (err: any) {
-      this.announce('Error running accessibility scan.');
+      this.announce(this.i18n.t('announceScanError'));
       console.error('Scan error:', err);
     } finally {
       this.loadingSubject.next(false);
@@ -108,7 +108,7 @@ export class AccessibilityService {
   async applyFix(issue: Issue, fixValue?: string): Promise<void> {
     const success = await this.gScript.run<boolean>('rpcApplyFix', issue.elementId, issue.issueType, fixValue, issue.fixMetadata);
     if (success) {
-      this.announce(`Fixed issue: ${issue.title}`);
+      this.announce(this.i18n.t('announceFixedIssue', { title: issue.title }));
       const updated = this.issuesSubject.value.filter((i) => i.elementId !== issue.elementId);
       this.issuesSubject.next(updated);
       this.notifyUI();
@@ -119,21 +119,21 @@ export class AccessibilityService {
     const currentIssues = [...this.issuesSubject.value];
     const fixableIssues = currentIssues.filter((i) => i.canAutoFix);
     if (fixableIssues.length === 0) {
-      this.announce('No auto-remediable issues found to fix.');
+      this.announce(this.i18n.t('announceNoFixable'));
       return;
     }
 
     this.loadingSubject.next(true);
-    this.announce(`Applying automatic fixes to ${fixableIssues.length} issues...`);
+    this.announce(this.i18n.t('announceApplyingFixes', { count: fixableIssues.length }));
 
     let fixedCount = 0;
     for (const issue of fixableIssues) {
       try {
         let fixValue = undefined;
         if (issue.issueType === 'Alternative Text') {
-          fixValue = altMap[issue.elementId] || issue.fixMetadata?.suggestedCleanAlt || 'Descriptive visual graphic';
+          fixValue = altMap[issue.elementId] || issue.fixMetadata?.suggestedCleanAlt || this.i18n.t('defaultAltText');
         } else if (issue.issueType === 'Meaningful Hyperlinks') {
-          fixValue = linkMap[issue.elementId] || issue.fixMetadata?.suggestedText || 'WCAG 2.1 AA Reference Documentation';
+          fixValue = linkMap[issue.elementId] || issue.fixMetadata?.suggestedText || this.i18n.t('defaultLinkText');
         } else {
           fixValue = issue.fixMetadata?.suggestedHex || issue.fixMetadata?.suggestedHeadingLevel;
         }
@@ -147,7 +147,7 @@ export class AccessibilityService {
       }
     }
 
-    this.announce(`Successfully auto-fixed ${fixedCount} issues! Updating scan results...`);
+    this.announce(this.i18n.t('announceFixAllSuccess', { count: fixedCount }));
     await this.scanDocument();
   }
 
@@ -164,7 +164,7 @@ export class AccessibilityService {
     await this.gScript.run('rpcSaveSettings', settings);
     this.settingsSubject.next(settings);
     this.i18n.setLanguage(settings.language || 'AUTO', settings.userLocale);
-    this.announce('Settings saved successfully.');
+    this.announce(this.i18n.t('announceSettingsSaved'));
     this.notifyUI();
   }
 }

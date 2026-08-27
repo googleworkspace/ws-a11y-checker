@@ -24,10 +24,10 @@ import { I18nService } from '../../services/i18n.service';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="google-card dashboard-header" role="region" aria-label="Scan Summary">
+    <div class="google-card dashboard-header" role="region" [attr.aria-label]="i18n.t('scanSummaryRegion')">
       <div class="score-section">
         <div class="score-circle" [class.perfect]="!loading && hasScanned && errors === 0">
-          <span class="score-num">{{ getScoreDisplay() }}</span>
+          <span class="score-num"><bdi>{{ getScoreDisplay() }}</bdi></span>
         </div>
         <div class="score-label">{{ i18n.t('wcagScore') }}</div>
       </div>
@@ -36,35 +36,35 @@ import { I18nService } from '../../services/i18n.service';
 
       <div class="summary-counts">
         <div class="stat error" [class.selected]="selectedFilter === 'ERROR'" (click)="filterSelect.emit(selectedFilter === 'ERROR' ? 'ALL' : 'ERROR')" role="button" tabindex="0">
-          <span class="count">{{ loading || !hasScanned ? '-' : errors }}</span>
+          <span class="count"><bdi>{{ loading || !hasScanned ? '-' : errors }}</bdi></span>
           <span class="label">{{ i18n.t('errors') }}</span>
         </div>
         <div class="stat warning" [class.selected]="selectedFilter === 'WARNING'" (click)="filterSelect.emit(selectedFilter === 'WARNING' ? 'ALL' : 'WARNING')" role="button" tabindex="0">
-          <span class="count">{{ loading || !hasScanned ? '-' : warnings }}</span>
+          <span class="count"><bdi>{{ loading || !hasScanned ? '-' : warnings }}</bdi></span>
           <span class="label">{{ i18n.t('warnings') }}</span>
         </div>
         <div class="stat notice" [class.selected]="selectedFilter === 'NOTICE'" (click)="filterSelect.emit(selectedFilter === 'NOTICE' ? 'ALL' : 'NOTICE')" role="button" tabindex="0">
-          <span class="count">{{ loading || !hasScanned ? '-' : notices }}</span>
+          <span class="count"><bdi>{{ loading || !hasScanned ? '-' : notices }}</bdi></span>
           <span class="label">{{ i18n.t('notices') }}</span>
         </div>
       </div>
     </div>
 
     <div class="filter-chips">
-      <button type="button" class="chip" [class.active]="selectedFilter === 'ALL'" (click)="filterSelect.emit('ALL')">{{ i18n.t('all') }} ({{ issues.length }})</button>
-      <button type="button" class="chip chip-error" [class.active]="selectedFilter === 'ERROR'" (click)="filterSelect.emit('ERROR')">{{ i18n.t('errors') }} ({{ errors }})</button>
-      <button type="button" class="chip chip-warning" [class.active]="selectedFilter === 'WARNING'" (click)="filterSelect.emit('WARNING')">{{ i18n.t('warnings') }} ({{ warnings }})</button>
-      <button type="button" class="chip chip-notice" [class.active]="selectedFilter === 'NOTICE'" (click)="filterSelect.emit('NOTICE')">{{ i18n.t('notices') }} ({{ notices }})</button>
+      <button type="button" class="chip" [class.active]="selectedFilter === 'ALL'" (click)="filterSelect.emit('ALL')">{{ i18n.t('all') }} (<bdi>{{ issues.length }}</bdi>)</button>
+      <button type="button" class="chip chip-error" [class.active]="selectedFilter === 'ERROR'" (click)="filterSelect.emit('ERROR')">{{ i18n.t('errors') }} (<bdi>{{ errors }}</bdi>)</button>
+      <button type="button" class="chip chip-warning" [class.active]="selectedFilter === 'WARNING'" (click)="filterSelect.emit('WARNING')">{{ i18n.t('warnings') }} (<bdi>{{ warnings }}</bdi>)</button>
+      <button type="button" class="chip chip-notice" [class.active]="selectedFilter === 'NOTICE'" (click)="filterSelect.emit('NOTICE')">{{ i18n.t('notices') }} (<bdi>{{ notices }}</bdi>)</button>
     </div>
 
     <div class="actions-strip">
-      <button type="button" class="primary" [disabled]="loading" (click)="scan.emit()" aria-label="Run WCAG 2.1 AA scan across active document">
+      <button type="button" class="primary" [disabled]="loading" (click)="scan.emit()" [attr.aria-label]="i18n.t('rescanAriaLabel')">
         {{ loading ? '...' : i18n.t('rescanBtn') }}
       </button>
-      <button *ngIf="fixableCount > 0" type="button" class="fix-all-btn" [disabled]="loading" (click)="fixAll.emit()" aria-label="Auto-remediate all fixable accessibility issues">
-        ⚡ {{ i18n.t('fixAllBtn') || 'Fix All' }} ({{ fixableCount }})
+      <button *ngIf="fixableCount > 0" type="button" class="fix-all-btn" [disabled]="loading" (click)="fixAll.emit()" [attr.aria-label]="i18n.t('fixAllAriaLabel')">
+        ⚡ {{ i18n.t('fixAllBtn') }} (<bdi>{{ fixableCount }}</bdi>)
       </button>
-      <button *ngIf="hostType === 'SLIDES'" type="button" [disabled]="loading" (click)="openReadingOrder.emit()" aria-label="Open Slides object reading order editor modal">
+      <button *ngIf="hostType === 'SLIDES'" type="button" [disabled]="loading" (click)="openReadingOrder.emit()" [attr.aria-label]="i18n.t('readingOrderAriaLabel')">
         {{ i18n.t('readingOrderModalBtn') }}
       </button>
     </div>
@@ -75,7 +75,7 @@ import { I18nService } from '../../services/i18n.service';
       border: 1px solid #dadce0;
       border-radius: 8px;
       padding: 14px;
-      margin-bottom: 12px;
+      margin-block-end: 12px;
       box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.08);
       display: flex;
       align-items: center;
@@ -107,6 +107,8 @@ import { I18nService } from '../../services/i18n.service';
       font-size: 15px;
       font-weight: 700;
       color: #d93025;
+      direction: ltr;
+      unicode-bidi: isolate;
     }
     .score-circle.perfect .score-num {
       color: #188038;
@@ -128,7 +130,8 @@ import { I18nService } from '../../services/i18n.service';
     .stat {
       text-align: center;
       cursor: pointer;
-      padding: 4px 6px;
+      padding-block: 4px;
+      padding-inline: 6px;
       border-radius: 6px;
       transition: background 0.15s ease;
     }
@@ -139,6 +142,8 @@ import { I18nService } from '../../services/i18n.service';
       display: block;
       font-size: 17px;
       font-weight: 500;
+      direction: ltr;
+      unicode-bidi: isolate;
     }
     .stat.error .count { color: #d93025; }
     .stat.warning .count { color: #e37400; }
@@ -148,13 +153,14 @@ import { I18nService } from '../../services/i18n.service';
     .filter-chips {
       display: flex;
       gap: 6px;
-      margin-bottom: 14px;
+      margin-block-end: 14px;
       overflow-x: auto;
-      padding-bottom: 2px;
+      padding-block-end: 2px;
     }
     button.chip {
       height: 26px;
-      padding: 0 10px;
+      padding-block: 0;
+      padding-inline: 10px;
       font-size: 11px;
       border-radius: 13px;
       border: 1px solid #dadce0;
@@ -172,7 +178,7 @@ import { I18nService } from '../../services/i18n.service';
     .actions-strip {
       display: flex;
       gap: 8px;
-      margin-bottom: 16px;
+      margin-block-end: 16px;
     }
     .actions-strip button {
       flex: 1;

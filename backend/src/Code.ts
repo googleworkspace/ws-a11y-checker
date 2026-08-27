@@ -604,15 +604,28 @@ function rpcGenerateAiLinkTitle(anchorText: string, sentenceContext?: string, ur
  * RPC: Gets the user settings
  */
 function rpcGetSettings(): AddonSettings {
+  let userLocale = 'en';
+  try {
+    if (typeof Session !== 'undefined' && Session && typeof Session.getActiveUserLocale === 'function') {
+      userLocale = Session.getActiveUserLocale() || 'en';
+    }
+  } catch (e) {
+    userLocale = 'en';
+  }
+
   try {
     const props = PropertiesService.getUserProperties().getProperties();
     return {
       ...DEFAULT_SETTINGS,
       ...props,
-      enableAutoRemediation: props['enableAutoRemediation'] === 'true'
+      enableAutoRemediation: props['enableAutoRemediation'] === 'true',
+      userLocale
     } as AddonSettings;
   } catch (e) {
-    return DEFAULT_SETTINGS;
+    return {
+      ...DEFAULT_SETTINGS,
+      userLocale
+    };
   }
 }
 
